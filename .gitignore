@@ -1,0 +1,6 @@
+.build/
+build/
+graphify-out/
+.DS_Store
+*.xcodeproj/xcuserdata/
+.swiftpm/
