@@ -5,18 +5,56 @@ import StudyNookCore
 /// Every scene is split into a slow `background` (sky, ground, buildings: redrawn about once a second)
 /// and a fast `foreground` (actors, fire, particles: redrawn at the frame rate).
 enum StoryScenes {
+    // MARK: - Road and event
+
+    /// While the timer runs only the road is shown: the army marches, ships sail, dragons fly.
+    /// The action of the chapter (fire, battles, fallen dragons) plays at the start of the rest.
+    static let eventShare = 0.55
+
+    /// Part of the chapter's timeline shown as the road.
+    static func roadRange(_ ch: Chapter) -> ClosedRange<Double> {
+        switch ch {
+        case .birth: 0...0.44
+        case .qarth: 0...0.78
+        case .astapor: 0.8...1.0
+        default: 0...1
+        }
+    }
+
+    /// Part of the chapter's timeline shown as the event during the rest. nil: the rest is only the quiet scene.
+    static func eventRange(_ ch: Chapter) -> ClosedRange<Double>? {
+        switch ch {
+        case .birth: 0.45...1
+        case .qarth: 0.8...1
+        case .astapor: 0.3...0.78
+        case .vaesDothrak, .goldenRoad, .beyondWall, .winterfell, .rhaegal: 0...1
+        case .epilogue: 0.2...1
+        case .meereen, .sailing, .kingsLanding: nil
+        }
+    }
+
+    static func roadEnv(_ env: SceneEnv, _ ch: Chapter) -> SceneEnv {
+        let r = roadRange(ch)
+        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * env.p, total: env.total, calm: true)
+    }
+
+    /// The event as a scene environment, while it plays (the first part of a rest).
+    static func eventEnv(_ env: SceneEnv, _ ch: Chapter) -> SceneEnv? {
+        guard env.p < eventShare, let r = eventRange(ch) else { return nil }
+        let local = env.p / eventShare
+        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * local, total: env.total * eventShare, calm: false)
+    }
+
     static func background(_ c: GraphicsContext, _ env: SceneEnv, phase: Phase, chapter ch: Chapter) {
         switch phase {
         case .idle where ch == .birth:
             break // the idle night scene is drawn in one piece in the foreground
         case .idle:
-            journeyBackground(c, env, ch)
-        case .journey:
-            journeyBackground(c, env, ch)
-        case .arrival:
-            journeyBackground(c, SceneEnv(size: env.size, t: env.t, p: 1, total: env.total), ch)
+            journeyBackground(c, roadEnv(env, ch), ch)
+        case .journey, .arrival:
+            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: phase == .arrival ? 1 : env.p, total: env.total), ch), ch)
         case .choice, .rest:
-            RestStory.background(c, env, ch)
+            if let ev = eventEnv(env, ch) { journeyBackground(c, ev, ch) } else { RestStory.background(c, env, ch) }
         }
     }
 
@@ -25,18 +63,27 @@ enum StoryScenes {
         case .idle where ch == .birth:
             IdlePainter.draw(c, size: env.size, t: env.t, ready: false)
         case .idle:
-            journeyForeground(c, SceneEnv(size: env.size, t: env.t, p: 0.02, total: env.total), ch)
+            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: env.total), ch), ch)
         case .journey:
-            journeyForeground(c, env, ch)
+            journeyForeground(c, roadEnv(env, ch), ch)
         case .arrival:
-            journeyForeground(c, SceneEnv(size: env.size, t: env.t, p: 1, total: env.total), ch)
+            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 1, total: env.total), ch), ch)
             banner(c, env, ch)
         case .choice, .rest:
-            RestStory.foreground(c, env, ch)
+            if let ev = eventEnv(env, ch) {
+                journeyForeground(c, ev, ch)
+            } else {
+                RestStory.foreground(c, env, ch)
+            }
+            // A quick dip to black between the event and the quiet scene.
+            if phase == .rest, eventRange(ch) != nil {
+                let d = abs(env.p - eventShare), half = 0.45 / env.total
+                if d < half { Stage.wash(c, env, RGB(0, 0, 0), 1 - d / half) }
+            }
         }
     }
 
-    private static func journeyBackground(_ c: GraphicsContext, _ env: SceneEnv, _ ch: Chapter) {
+    static func journeyBackground(_ c: GraphicsContext, _ env: SceneEnv, _ ch: Chapter) {
         switch ch {
         case .birth: JourneyEarly.birthBackground(c, env)
         case .qarth: JourneyEarly.qarthBackground(c, env)
@@ -53,7 +100,7 @@ enum StoryScenes {
         }
     }
 
-    private static func journeyForeground(_ c: GraphicsContext, _ env: SceneEnv, _ ch: Chapter) {
+    static func journeyForeground(_ c: GraphicsContext, _ env: SceneEnv, _ ch: Chapter) {
         switch ch {
         case .birth: JourneyEarly.birthForeground(c, env)
         case .qarth: JourneyEarly.qarthForeground(c, env)

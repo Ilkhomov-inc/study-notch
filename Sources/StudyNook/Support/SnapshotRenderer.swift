@@ -32,7 +32,8 @@ enum SnapshotRenderer {
                 items.append(Item(name: "\(n)-journey-\(Int(p * 100))", phase: .journey, chapter: ch, progress: p))
             }
             items.append(Item(name: "\(n)-arrival", phase: .arrival, chapter: ch, progress: 0.4))
-            items.append(Item(name: "\(n)-rest", phase: .rest, chapter: ch, progress: 0.45))
+            items.append(Item(name: "\(n)-rest-event", phase: .rest, chapter: ch, progress: 0.3))
+            items.append(Item(name: "\(n)-rest-quiet", phase: .rest, chapter: ch, progress: 0.8))
         }
         if let only { items = items.filter { $0.name.hasPrefix(only) } }
 

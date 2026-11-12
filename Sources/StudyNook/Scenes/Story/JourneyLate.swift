@@ -123,6 +123,7 @@ enum JourneyLate {
     }
 
     static func goldenForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { goldenRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let roadY = hy + 30 * u
         let burn = M.smoothstep(0.25, 0.5, p)
@@ -189,6 +190,7 @@ enum JourneyLate {
     }
 
     static func wallForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { wallRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let gy = hy + 24 * u
         let arrive = M.smoothstep(0.28, 0.5, p)
@@ -257,6 +259,7 @@ enum JourneyLate {
     }
 
     static func winterfellForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { winterfellRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         // The dead army, a great dark tide.
         Crowd.draw(c, env, kind: .wights, count: 58, xRange: (env.w * 0.3)...(env.w * 1.1), yFar: hy + 8 * u, yNear: hy + 42 * u, sFar: 0.55, sNear: 1.1,
@@ -300,6 +303,7 @@ enum JourneyLate {
     }
 
     static func rhaegalForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { rhaegalRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         // The Iron Fleet closes in from the right.
         let ironSail = RGB(0.1, 0.1, 0.12)
@@ -336,7 +340,7 @@ enum JourneyLate {
 
     static func landingBackground(_ c: GraphicsContext, _ env: SceneEnv) {
         let p = env.p, u = env.u, hy = env.hy
-        let k = M.smoothstep(0.1, 0.8, p)
+        let k = env.calm ? 0 : M.smoothstep(0.1, 0.8, p)
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB.lerp(RGB(0.28, 0.14, 0.34), Backdrop.fireSky.0, k), skyBottom: RGB.lerp(RGB(1, 0.58, 0.32), Backdrop.fireSky.1, k),
             sun: nil, ground: .sea(top: RGB.lerp(RGB(0.4, 0.26, 0.34), RGB(0.5, 0.2, 0.1), k), bottom: RGB(0.06, 0.04, 0.08))))
         Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.74, y: hy - 2 * u), u: 1.55 * u, t: 0, lit: 1 - k, land: RGB(0.2, 0.1, 0.1))
@@ -345,6 +349,7 @@ enum JourneyLate {
     }
 
     static func landingForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { landingRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let burn = M.smoothstep(0.2, 0.85, p)
         // The Iron Fleet burns.
@@ -391,7 +396,7 @@ enum JourneyLate {
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let gy = hy + 20 * u
         let cx = env.w * 0.5
-        let melt = M.smoothstep(0.35, 0.78, p)
+        let melt = env.calm ? 0 : M.smoothstep(0.35, 0.78, p)
         // The Iron Throne: a heap of blades, glowing as it melts.
         var blades = c
         let glow = Double(melt)
@@ -417,11 +422,11 @@ enum JourneyLate {
         // Jon stands to the side with his head down.
         Figure.draw(c, feet: CGPoint(x: env.w * 0.24, y: gy + 4 * u), h: 36 * u, style: .jon, facing: 1, t: t)
         // Drogon enters, breathes on the throne, and leaves with Daenerys.
-        let enter = M.smoothstep(0, 0.3, p), leave = M.smoothstep(0.78, 1, p)
+        let enter = M.smoothstep(0, 0.3, p), leave = env.calm ? 0 : M.smoothstep(0.78, 1, p)
         let size = DragonKit.size(.epilogue) * u * 1.4
         let dpos = CGPoint(x: M.lerp(env.w * 1.1, env.w * 0.7, CGFloat(enter)) + CGFloat(leave) * env.w * 0.5, y: env.h * 0.34 - CGFloat(leave) * 26 * u + CGFloat(sin(t * 1.6)) * 3 * u)
         DragonKit.fly(c, at: dpos, scale: size, climb: 0.1 * Double(leave), facing: leave > 0.02 ? 1 : -1, t: t, palette: .drogon, hz: 1.3)
-        if p > 0.3 && p < 0.78 {
+        if !env.calm && p > 0.3 && p < 0.78 {
             let m = DragonKit.mouth(at: dpos, scale: size, climb: 0, facing: -1)
             Fire.breath(c, from: m, angle: atan2(Double(gy - 14 * u - m.y), Double(cx - m.x)), length: hypot(cx - m.x, gy - m.y), t: t, u: u, intensity: M.smoothstep(0.3, 0.38, p))
         }

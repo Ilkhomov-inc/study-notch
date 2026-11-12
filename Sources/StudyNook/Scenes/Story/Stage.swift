@@ -10,6 +10,8 @@ struct SceneEnv {
     var horizon: CGFloat = 0.72
     /// Length of the phase in seconds (used for fades that should last about half a second).
     var total: Double = 1500
+    /// Road mode: while the timer runs, scenes show only travel. Action plays during the rest.
+    var calm = false
 
     var w: CGFloat { size.width }
     var h: CGFloat { size.height }

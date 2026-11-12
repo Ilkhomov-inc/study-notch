@@ -328,12 +328,14 @@ enum JourneyEarly {
     // MARK: - Chapter 4: Vaes Dothrak
 
     static func vaesBackground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { vaesRoadBackground(c, env); return }
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB(0.02, 0.03, 0.09), skyBottom: RGB(0.22, 0.10, 0.12), stars: 1,
             ground: .land(far: RGB(0.14, 0.11, 0.08), near: RGB(0.05, 0.04, 0.04))))
         Stage.hills(c, env, color: RGB(0.09, 0.07, 0.07), y: env.hy + 2 * env.u, amp: 3 * env.u, freq: 2, phase: 0.8)
     }
 
     static func vaesForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.calm { JourneyLate.vaesRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let gy = hy + 24 * u, cx = env.w * 0.5
         // The temple: a big wooden hall with a pointed roof.
