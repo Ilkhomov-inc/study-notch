@@ -64,7 +64,7 @@ enum RestStory {
         case .beyondWall: JourneyLate.wallBackground(c, calm)
         case .winterfell: JourneyLate.winterfellBackground(c, calm)
         case .rhaegal: JourneyLate.rhaegalBackground(c, SceneEnv(size: env.size, t: env.t, p: 1, total: env.total))
-        case .kingsLanding: JourneyLate.landingBackground(c, SceneEnv(size: env.size, t: env.t, p: 1, total: env.total))
+        case .kingsLanding: JourneyLate.landingBurnBackground(c, env)
         case .epilogue:
             Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB(0.18, 0.2, 0.42), skyBottom: RGB(1.0, 0.7, 0.5), sun: (0.88, 0.62, RGB(1, 0.85, 0.55), 12),
                 ground: .sea(top: RGB(0.5, 0.4, 0.5), bottom: RGB(0.08, 0.1, 0.2))))
@@ -216,12 +216,7 @@ enum RestStory {
     // MARK: - The final rest: the city burns
 
     private static func finalFire(_ c: GraphicsContext, _ env: SceneEnv) {
-        // Drogon circles over the burning city; the fire never stops.
-        let loop = 0.8 + 0.2 * M.fract(env.t / 22)
-        let e = SceneEnv(size: env.size, t: env.t, p: loop, total: env.total)
-        JourneyLate.landingForeground(c, e)
-        Stage.wash(c, env, RGB(1, 0.25, 0.05), 0.08 + 0.05 * sin(env.t * 6))
-        Stage.vignette(c, env, strength: 0.5)
+        JourneyLate.landingBurnForeground(c, env)
     }
 
     // MARK: - Epilogue rest

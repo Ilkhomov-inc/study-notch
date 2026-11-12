@@ -143,25 +143,27 @@ enum Buildings {
     /// King's Landing: a real coastal city. Three hills (the Hill of Visenya with the Great Sept, the High Hill of Aegon
     /// with the Red Keep, the Hill of Rhaenys), dense streets of houses down the slopes, a harbour wall and city gates.
     /// Local units: x from -64 (shore) to `extent` (open country on the right), y 0 = base line, hills rise to about -34.
-    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70) {
+    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70, shoreline: Bool = true) {
         func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: base.x + x * u, y: base.y + y * u) }
         func bump(_ x: CGFloat, _ mid: CGFloat, _ w: CGFloat) -> CGFloat { exp(-pow((x - mid) / w, 2)) }
         /// Surface of the land: shore on the left, three hills, flat country on the right.
         func ground(_ x: CGFloat) -> CGFloat {
             let level = 12 - 44 * bump(x, 6, 17) - 28 * bump(x, -30, 13) - 22 * bump(x, 44, 14) - 4 * bump(x, 90, 30)
-            let shore = max(0, min(1, (x + 66) / 20))
+            let shore: CGFloat = shoreline ? max(0, min(1, (x + 66) / 20)) : 1
             return level + (1 - shore) * 70
         }
 
         // The land, with a lit crest and a shaded foot.
         var landPath = Path()
-        landPath.move(to: P(-70, 120))
-        var x: CGFloat = -70
+        let west: CGFloat = shoreline ? -70 : -340
+        landPath.move(to: P(west, 120))
+        var x: CGFloat = west
         while x <= extent { landPath.addLine(to: P(x, ground(x))); x += 2 }
         landPath.addLine(to: P(extent, 120))
         landPath.closeSubpath()
         c.fill(landPath, with: .linearGradient(Gradient(colors: [shade(land, 1.7).color(), land.color(), shade(land, 0.7).color()]),
                                                startPoint: P(0, -34), endPoint: P(0, 40)))
+        if shoreline {
         // Beach and surf along the left shore.
         var shore = Path()
         x = -70
@@ -170,11 +172,12 @@ enum Buildings {
         c.stroke(shore, with: .color(RGB(0.95, 0.85, 0.65).color(0.7)), lineWidth: 1.6 * u)
         c.stroke(shore.applying(CGAffineTransform(translationX: -2 * u, y: 0.5 * u)), with: .color(.white.opacity(0.35)), lineWidth: 0.8 * u)
 
+        }
         // Houses from the back rows to the front ones, so lower streets overlap the upper ones.
         struct H { var x: CGFloat; var y: CGFloat; var w: CGFloat; var h: CGFloat; var i: Int }
         var houses: [H] = []
         var i = 0
-        var hx: CGFloat = -52
+        var hx: CGFloat = shoreline ? -52 : -330
         while hx < extent - 4 {
             for row in 0..<4 {
                 let jitter = CGFloat(M.rand(i, 31) - 0.5) * 3
@@ -199,6 +202,7 @@ enum Buildings {
                   u: u * 0.55, lit: lit, seed: h.i, t: t)
         }
 
+        if shoreline {
         // The harbour wall along the shore, with two towers.
         var wallPath = Path()
         x = -62
@@ -210,6 +214,7 @@ enum Buildings {
             tower(c, x: base.x + (tx - 2.2) * u, base: base.y + (ground(tx) + 1) * u, w: 4.4 * u, h: 12 * u, stone: RGB(0.52, 0.42, 0.38), roof: RGB(0.55, 0.2, 0.15), u: u * 0.5, lit: lit, seed: Int(tx) + 100, t: t)
         }
 
+        }
         // The Great Sept of Baelor on the Hill of Visenya: white, seven spires.
         let sx: CGFloat = -30, sy = ground(sx) + 1
         c.fill(Path(CGRect(x: base.x + (sx - 8) * u, y: base.y + (sy - 7) * u, width: 16 * u, height: 8 * u)), with: .linearGradient(

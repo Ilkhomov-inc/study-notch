@@ -151,3 +151,48 @@ extension JourneyEarly {
         Stage.hills(c, env, color: RGB(0.4, 0.32, 0.2), y: hy + 2 * u, amp: 3 * u, freq: 2, phase: 0.8, haze: RGB(1, 0.8, 0.6), hazeAmount: 0.4, tufts: true)
     }
 }
+
+// MARK: - The burning of King's Landing (final rest): only the city, no sea, no ships
+
+extension JourneyLate {
+    static func landingBurnBackground(_ c: GraphicsContext, _ env: SceneEnv) {
+        let u = env.u, hy = env.hy
+        Stage.paintBackdrop(c, env, Backdrop(skyTop: Backdrop.fireSky.0, skyBottom: Backdrop.fireSky.1, sun: nil,
+            ground: .land(far: RGB(0.3, 0.14, 0.1), near: RGB(0.12, 0.06, 0.05))))
+        // Smoke-dark hills behind the city.
+        Stage.hills(c, env, color: RGB(0.2, 0.09, 0.08), y: hy - 6 * u, amp: 5 * u, freq: 2.4, phase: 0.6, haze: RGB(0.9, 0.35, 0.12), hazeAmount: 0.5)
+        // The whole city, centred on the Red Keep, spreading to both edges.
+        Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.5 - 6 * u, y: hy + 4 * u), u: 1.0 * u, t: 0, lit: 0, land: RGB(0.36, 0.22, 0.18), extent: 340, shoreline: false)
+    }
+
+    static func landingBurnForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        let u = env.u, t = env.t, hy = env.hy
+        // The fire never stops and rises over the first minutes.
+        let rise = M.smoothstep(0, 0.35, env.p)
+        let burn = 0.55 + 0.6 * rise
+        // Separate blazes on the slopes, so the city stays visible between them.
+        for k in 0..<9 {
+            let cx = env.w * (0.04 + 0.115 * CGFloat(k)) + CGFloat(M.rand(k, 12) - 0.5) * 14 * u
+            let y = hy + (26 - CGFloat(k * 5 % 3) * 13) * u
+            Fire.flames(c, x0: cx - 15 * u, x1: cx + 15 * u, y: y, height: (12 + 12 * CGFloat(M.rand(k, 3))) * u * CGFloat(0.6 + 0.4 * rise),
+                        intensity: burn * (0.65 + 0.35 * M.rand(k, 4)), t: t + Double(k) * 0.7, seed: 40 + k, u: u)
+        }
+        // The Red Keep burns from its towers.
+        Fire.flames(c, x0: env.w * 0.45, x1: env.w * 0.56, y: hy - 14 * u, height: (26 + 10 * rise) * u, intensity: burn, t: t + 0.7, seed: 51, u: u)
+        Fire.smoke(c, x0: 0, x1: env.w, y: hy - 10 * u, rise: 80 * u, t: t, u: u, opacity: 0.5, seed: 3, wind: 20)
+        Fire.smoke(c, x0: env.w * 0.1, x1: env.w * 0.9, y: hy - 22 * u, rise: 70 * u, t: t + 3, u: u, opacity: 0.45, seed: 8, wind: 14)
+        Fire.embers(c, env, x0: 0, x1: env.w, y: hy + 10 * u, count: 40, rise: 110 * u)
+        // Drogon makes slow passes over the city and burns it.
+        let size = DragonKit.size(.kingsLanding) * u * 1.25
+        let pass = M.fract(t / 18)
+        let x = M.lerp(env.w * 1.06, env.w * -0.06, CGFloat(M.easeInOut(pass)))
+        let pos = CGPoint(x: x, y: env.h * 0.22 + CGFloat(sin(pass * .pi)) * 10 * u + CGFloat(sin(t * 1.7)) * 2 * u)
+        DragonKit.fly(c, at: pos, scale: size, climb: -0.12, facing: -1, t: t, palette: .drogon, hz: 1.5)
+        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: -0.12), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.3)
+        let m = DragonKit.mouth(at: pos, scale: size, climb: -0.12)
+        Fire.breath(c, from: m, angle: .pi * 0.58, length: 60 * u, t: t, u: u, intensity: 1)
+        Stage.wash(c, env, RGB(1, 0.3, 0.06), 0.1 + 0.06 * sin(t * 6))
+        Stage.ash(c, env)
+        Stage.vignette(c, env, strength: 0.45)
+    }
+}

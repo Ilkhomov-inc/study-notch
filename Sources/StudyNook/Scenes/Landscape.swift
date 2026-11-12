@@ -103,8 +103,8 @@ enum Landscape {
     }
 
     /// King's Landing: see `Buildings.kingsLanding`.
-    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70) {
-        Buildings.kingsLanding(c, base: base, u: u, t: t, lit: lit, land: land, extent: extent)
+    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70, shoreline: Bool = true) {
+        Buildings.kingsLanding(c, base: base, u: u, t: t, lit: lit, land: land, extent: extent, shoreline: shoreline)
     }
 
     /// Dragonstone: see `Buildings.dragonstone`.
