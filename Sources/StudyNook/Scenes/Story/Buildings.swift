@@ -140,55 +140,122 @@ enum Buildings {
 
     // MARK: - Places
 
-    /// King's Landing: houses climbing the hill of Aegon, the Great Sept, the harbour wall and the Red Keep.
-    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB) {
+    /// King's Landing: a real coastal city. Three hills (the Hill of Visenya with the Great Sept, the High Hill of Aegon
+    /// with the Red Keep, the Hill of Rhaenys), dense streets of houses down the slopes, a harbour wall and city gates.
+    /// Local units: x from -64 (shore) to `extent` (open country on the right), y 0 = base line, hills rise to about -34.
+    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70) {
         func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: base.x + x * u, y: base.y + y * u) }
-        // The hill.
-        var mound = Path()
-        mound.move(to: P(-46, 14))
-        mound.addQuadCurve(to: P(46, 14), control: P(0, -22))
-        mound.closeSubpath()
-        c.fill(mound, with: .linearGradient(Gradient(colors: [shade(land, 1.6).color(), land.color(), shade(land, 0.85).color()]),
-                                            startPoint: P(0, -12), endPoint: P(0, 14)))
-        func ground(_ x: CGFloat) -> CGFloat { 14 - 20 * (1 - (x / 46) * (x / 46)) * 0.9 }
-        // Three rows of houses, far to near.
-        for row in 0..<3 {
-            let n = 14 + row * 3
-            for i in 0..<n {
-                let x = -42 + 84 * CGFloat(M.rand(i + row * 40, 31))
-                let gy = ground(x) + CGFloat(row) * 2.5 + 2
-                let w = (3 + 2.4 * CGFloat(M.rand(i + row * 40, 32))) * (0.85 + 0.15 * CGFloat(row))
-                let h = (3 + 3.2 * CGFloat(M.rand(i + row * 40, 33))) * (0.85 + 0.15 * CGFloat(row))
-                let tint = M.rand(i + row * 40, 34)
-                house(c, x: base.x + (x - w / 2) * u, base: base.y + gy * u, w: w * u, h: h * u,
-                      wall: RGB(0.55 + 0.2 * tint, 0.40 + 0.12 * tint, 0.32), roof: RGB(0.55 + 0.3 * (1 - tint), 0.2 + 0.1 * tint, 0.14),
-                      u: u * 0.55, lit: lit, seed: i + row * 40, t: t)
+        func bump(_ x: CGFloat, _ mid: CGFloat, _ w: CGFloat) -> CGFloat { exp(-pow((x - mid) / w, 2)) }
+        /// Surface of the land: shore on the left, three hills, flat country on the right.
+        func ground(_ x: CGFloat) -> CGFloat {
+            let level = 12 - 44 * bump(x, 6, 17) - 28 * bump(x, -30, 13) - 22 * bump(x, 44, 14) - 4 * bump(x, 90, 30)
+            let shore = max(0, min(1, (x + 66) / 20))
+            return level + (1 - shore) * 70
+        }
+
+        // The land, with a lit crest and a shaded foot.
+        var landPath = Path()
+        landPath.move(to: P(-70, 120))
+        var x: CGFloat = -70
+        while x <= extent { landPath.addLine(to: P(x, ground(x))); x += 2 }
+        landPath.addLine(to: P(extent, 120))
+        landPath.closeSubpath()
+        c.fill(landPath, with: .linearGradient(Gradient(colors: [shade(land, 1.7).color(), land.color(), shade(land, 0.7).color()]),
+                                               startPoint: P(0, -34), endPoint: P(0, 40)))
+        // Beach and surf along the left shore.
+        var shore = Path()
+        x = -70
+        shore.move(to: P(x, ground(x)))
+        while x <= -40 { shore.addLine(to: P(x, ground(x))); x += 1.5 }
+        c.stroke(shore, with: .color(RGB(0.95, 0.85, 0.65).color(0.7)), lineWidth: 1.6 * u)
+        c.stroke(shore.applying(CGAffineTransform(translationX: -2 * u, y: 0.5 * u)), with: .color(.white.opacity(0.35)), lineWidth: 0.8 * u)
+
+        // Houses from the back rows to the front ones, so lower streets overlap the upper ones.
+        struct H { var x: CGFloat; var y: CGFloat; var w: CGFloat; var h: CGFloat; var i: Int }
+        var houses: [H] = []
+        var i = 0
+        var hx: CGFloat = -52
+        while hx < extent - 4 {
+            for row in 0..<4 {
+                let jitter = CGFloat(M.rand(i, 31) - 0.5) * 3
+                let xx = hx + jitter
+                let dense = xx < 66 ? 1.0 : 0.35
+                if M.rand(i, 35) < dense {
+                    let by = ground(xx) + 3 + CGFloat(row) * 4.2
+                    let w = (3.2 + 2.8 * CGFloat(M.rand(i, 32))) * (0.9 + 0.1 * CGFloat(row))
+                    let h = (3 + 3.4 * CGFloat(M.rand(i, 33))) * (0.9 + 0.1 * CGFloat(row))
+                    if by < 40 { houses.append(H(x: xx, y: by, w: w, h: h, i: i)) }
+                }
+                i += 1
             }
+            hx += 2.9
         }
-        // Great Sept of Baelor: a white building with seven spires.
-        let sx = -24 * u
-        c.fill(Path(CGRect(x: base.x + sx - 7 * u, y: base.y - 7 * u, width: 14 * u, height: 8 * u)), with: .color(RGB(0.92, 0.9, 0.86).color()))
+        houses.sort { $0.y < $1.y }
+        for h in houses {
+            let tint = M.rand(h.i, 34)
+            house(c, x: base.x + (h.x - h.w / 2) * u, base: base.y + h.y * u, w: h.w * u, h: h.h * u,
+                  wall: RGB(0.62 + 0.25 * tint, 0.5 + 0.18 * tint, 0.4 + 0.1 * tint),
+                  roof: tint > 0.6 ? RGB(0.62, 0.24, 0.16) : (tint > 0.3 ? RGB(0.72, 0.38, 0.22) : RGB(0.42, 0.3, 0.28)),
+                  u: u * 0.55, lit: lit, seed: h.i, t: t)
+        }
+
+        // The harbour wall along the shore, with two towers.
+        var wallPath = Path()
+        x = -62
+        wallPath.move(to: P(x, ground(x) - 1))
+        while x <= -4 { wallPath.addLine(to: P(x, ground(x) - 0.5)); x += 2 }
+        c.stroke(wallPath, with: .color(RGB(0.5, 0.4, 0.36).color()), style: StrokeStyle(lineWidth: 3 * u, lineCap: .butt))
+        c.stroke(wallPath, with: .color(RGB(0.3, 0.22, 0.2).color()), style: StrokeStyle(lineWidth: 0.7 * u, dash: [1.6 * u, 1.6 * u]))
+        for tx in [CGFloat(-58), -22] {
+            tower(c, x: base.x + (tx - 2.2) * u, base: base.y + (ground(tx) + 1) * u, w: 4.4 * u, h: 12 * u, stone: RGB(0.52, 0.42, 0.38), roof: RGB(0.55, 0.2, 0.15), u: u * 0.5, lit: lit, seed: Int(tx) + 100, t: t)
+        }
+
+        // The Great Sept of Baelor on the Hill of Visenya: white, seven spires.
+        let sx: CGFloat = -30, sy = ground(sx) + 1
+        c.fill(Path(CGRect(x: base.x + (sx - 8) * u, y: base.y + (sy - 7) * u, width: 16 * u, height: 8 * u)), with: .linearGradient(
+            Gradient(colors: [RGB(0.98, 0.96, 0.92).color(), RGB(0.7, 0.68, 0.66).color()]), startPoint: P(sx - 8, 0), endPoint: P(sx + 8, 0)))
         for k in 0..<7 {
-            let px = base.x + sx - 6.2 * u + CGFloat(k) * 2.1 * u
-            let hh = (k == 3 ? 12 : 8 + CGFloat(k % 2) * 2) * u
-            c.fill(Path(CGRect(x: px, y: base.y - 7 * u - hh * 0.5, width: 1.6 * u, height: hh * 0.55)), with: .color(RGB(0.95, 0.93, 0.9).color()))
+            let px = sx - 7 + CGFloat(k) * 2.3
+            let hh: CGFloat = k == 3 ? 15 : (k % 2 == 0 ? 10 : 12)
+            c.fill(Path(CGRect(x: base.x + px * u, y: base.y + (sy - 7 - hh * 0.55) * u, width: 1.8 * u, height: hh * 0.6 * u)), with: .color(RGB(0.96, 0.94, 0.9).color()))
             var sp = Path()
-            sp.move(to: CGPoint(x: px - 0.3 * u, y: base.y - 7 * u - hh * 0.5)); sp.addLine(to: CGPoint(x: px + 0.8 * u, y: base.y - 7 * u - hh)); sp.addLine(to: CGPoint(x: px + 1.9 * u, y: base.y - 7 * u - hh * 0.5)); sp.closeSubpath()
-            c.fill(sp, with: .color(RGB(0.85, 0.82, 0.78).color()))
+            sp.move(to: P(px - 0.4, sy - 7 - hh * 0.55)); sp.addLine(to: P(px + 0.9, sy - 7 - hh)); sp.addLine(to: P(px + 2.2, sy - 7 - hh * 0.55)); sp.closeSubpath()
+            c.fill(sp, with: .color(RGB(0.82, 0.8, 0.78).color()))
+            c.fill(Ink.circle(P(px + 0.9, sy - 7 - hh - 0.8), 0.5 * u), with: .color(RGB(1, 0.9, 0.5).color()))
         }
-        // Red Keep: curtain wall, towers, great hall.
-        let keep = RGB(0.62, 0.20, 0.15), roof = RGB(0.78, 0.26, 0.17)
-        wall(c, x0: base.x + 6 * u, x1: base.x + 40 * u, base: base.y + 1 * u, h: 9 * u, stone: keep, u: u * 0.5, gate: base.x + 23 * u, lit: lit)
-        let towers: [(CGFloat, CGFloat, CGFloat)] = [(8, 4.4, 24), (14, 5.2, 34), (20, 4.4, 28), (26, 7.0, 46), (33, 4.6, 30), (38, 4.0, 22)]
-        for (i, tw) in towers.enumerated() {
-            tower(c, x: base.x + (tw.0 - tw.1 / 2) * u, base: base.y + 0.5 * u, w: tw.1 * u, h: tw.2 * u * 0.75, stone: keep, roof: roof, u: u * 0.55, lit: lit, seed: i + 5,
-                  crenel: i == 3, flag: i == 3 ? RGB(0.1, 0.1, 0.12) : nil, t: t)
+
+        // The Red Keep on the High Hill of Aegon: walls, a great hall and a crown of towers.
+        let kx: CGFloat = 6, ky = ground(kx)
+        let keep = RGB(0.66, 0.22, 0.16), roof = RGB(0.82, 0.3, 0.18)
+        wall(c, x0: base.x + (kx - 19) * u, x1: base.x + (kx + 19) * u, base: base.y + (ky + 3) * u, h: 8 * u, stone: RGB(0.58, 0.2, 0.15), u: u * 0.55, gate: base.x + kx * u, lit: lit)
+        // The great hall.
+        c.fill(Path(CGRect(x: base.x + (kx - 9) * u, y: base.y + (ky - 8) * u, width: 18 * u, height: 8 * u)), with: .linearGradient(
+            Gradient(colors: [keep.color(), shade(keep, 0.6).color()]), startPoint: P(0, ky - 8), endPoint: P(0, ky)))
+        var hallRoof = Path()
+        hallRoof.move(to: P(kx - 10, ky - 8)); hallRoof.addLine(to: P(kx - 5, ky - 13)); hallRoof.addLine(to: P(kx + 5, ky - 13)); hallRoof.addLine(to: P(kx + 10, ky - 8)); hallRoof.closeSubpath()
+        c.fill(hallRoof, with: .color(roof.color()))
+        let towers: [(CGFloat, CGFloat, CGFloat)] = [(-16, 4.6, 20), (-11, 5.2, 30), (-5, 4.4, 24), (1, 7.6, 44), (8, 4.6, 30), (13, 5, 24), (18, 4.2, 16)]
+        for (n, tw) in towers.enumerated() {
+            tower(c, x: base.x + (kx + tw.0 - tw.1 / 2) * u, base: base.y + (ky + 2) * u, w: tw.1 * u, h: tw.2 * u * 0.9, stone: keep, roof: roof, u: u * 0.55, lit: lit, seed: n + 5,
+                  crenel: n == 3, flag: (n == 3 || n == 1) ? RGB(0.08, 0.08, 0.1) : nil, t: t)
         }
         if lit > 0.55 {
-            c.fill(Ink.circle(P(24, -22), 34 * u), with: .radialGradient(
+            c.fill(Ink.circle(P(kx, ky - 16), 38 * u), with: .radialGradient(
                 Gradient(colors: [RGB(1, 0.72, 0.4).color(0.2 * (lit - 0.5) * 2), RGB(1, 0.72, 0.4).color(0)]),
-                center: P(24, -22), startRadius: 0, endRadius: 34 * u))
+                center: P(kx, ky - 16), startRadius: 0, endRadius: 38 * u))
         }
+
+        // The land walls and the great gate on the right.
+        let gx: CGFloat = 64
+        wall(c, x0: base.x + (gx - 4) * u, x1: base.x + extent * u, base: base.y + (ground(gx) + 5) * u, h: 9 * u, stone: RGB(0.5, 0.4, 0.36), u: u * 0.55)
+        for tx in [CGFloat(gx - 5), gx + 5] {
+            tower(c, x: base.x + (tx - 3) * u, base: base.y + (ground(gx) + 5.5) * u, w: 6 * u, h: 17 * u, stone: RGB(0.54, 0.42, 0.38), roof: RGB(0.55, 0.2, 0.15), u: u * 0.55, lit: lit, seed: Int(tx) + 150, crenel: true, t: t)
+        }
+        var gate = Path()
+        let gy = ground(gx) + 5.5
+        gate.move(to: P(gx - 2.4, gy)); gate.addLine(to: P(gx - 2.4, gy - 8)); gate.addQuadCurve(to: P(gx + 2.4, gy - 8), control: P(gx, gy - 12)); gate.addLine(to: P(gx + 2.4, gy)); gate.closeSubpath()
+        c.fill(gate, with: .color(RGB(0.06, 0.04, 0.05).color()))
+        c.fill(gate, with: .color(RGB(1, 0.65, 0.3).color(0.2 + 0.4 * lit)))
     }
 
     /// Dragonstone: a black crag with strata, with towers carved like dragons on top.

@@ -343,9 +343,7 @@ enum JourneyLate {
         let k = env.calm ? 0 : M.smoothstep(0.1, 0.8, p)
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB.lerp(RGB(0.28, 0.14, 0.34), Backdrop.fireSky.0, k), skyBottom: RGB.lerp(RGB(1, 0.58, 0.32), Backdrop.fireSky.1, k),
             sun: nil, ground: .sea(top: RGB.lerp(RGB(0.4, 0.26, 0.34), RGB(0.5, 0.2, 0.1), k), bottom: RGB(0.06, 0.04, 0.08))))
-        Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.74, y: hy - 2 * u), u: 1.55 * u, t: 0, lit: 1 - k, land: RGB(0.2, 0.1, 0.1))
-        // Surf along the shore of the city.
-        c.stroke(Ink.ellipse(CGPoint(x: env.w * 0.74, y: hy + 17 * u), 70 * u, 2.4 * u), with: .color(.white.opacity(0.28)), lineWidth: 0.8 * u)
+        Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.68, y: hy + 9 * u), u: 1.0 * u, t: 0, lit: 1 - k, land: RGB(0.34, 0.24, 0.2), extent: 240)
     }
 
     static func landingForeground(_ c: GraphicsContext, _ env: SceneEnv) {
