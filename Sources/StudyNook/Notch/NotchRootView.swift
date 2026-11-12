@@ -18,7 +18,7 @@ struct NotchRootView: View {
         ZStack(alignment: .top) {
             shape
                 .fill(.black)
-                .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 16, y: 6)
+                .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: expanded ? 16 : 0, y: 6)
 
             Group {
                 if expanded {

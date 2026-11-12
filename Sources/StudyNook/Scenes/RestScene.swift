@@ -122,7 +122,8 @@ enum Daenerys {
     static let hair = RGB(0.94, 0.93, 0.98)
     static let hairShade = RGB(0.70, 0.70, 0.82)
 
-    static func draw(_ c: GraphicsContext, base B: CGPoint, u: CGFloat, hand: CGPoint, t: Double, rim: Color) {
+    static func draw(_ c: GraphicsContext, base B: CGPoint, u: CGFloat, hand: CGPoint, t: Double, rim: Color, outfit: DanyOutfit = .blue) {
+        let dressLight = outfit.dressLight, dressDark = outfit.dressDark, sleeve = outfit.sleeve
         func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: B.x + x * u, y: B.y + y * u) }
         let breath = CGFloat(sin(t * 2 * .pi / 4)) * 0.25
         let dress = GraphicsContext.Shading.linearGradient(

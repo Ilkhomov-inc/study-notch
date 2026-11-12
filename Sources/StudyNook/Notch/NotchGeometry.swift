@@ -71,6 +71,11 @@ final class NotchViewModel {
     var isHeld = false
     /// Debug: always open.
     var pinnedExpanded = false
+    /// False while the screen sleeps: scenes stop drawing.
+    var isAwake = true
+    /// Minutes picked in the choice screen.
+    var journeyMinutes = 25
+    var restMinutes = 5
 
     @ObservationIgnored private var holdToken = 0
 

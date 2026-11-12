@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let env = ProcessInfo.processInfo.environment
 
         if let dir = env["STUDYNOOK_SNAPSHOT"] {
-            SnapshotRenderer.run(to: dir)
+            SnapshotRenderer.run(to: dir, only: env["STUDYNOOK_ONLY"])
             NSApp.terminate(nil)
             return
         }
@@ -29,44 +29,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         notch.show()
 
         setUpStatusItem()
+        observeSleep()
         Feedback.prepare()
 
         if let raw = env["STUDYNOOK_PHASE"] {
             let progress = Double(env["STUDYNOOK_PROGRESS"] ?? "") ?? 0.45
+            let number = Int(env["STUDYNOOK_CHAPTER"] ?? "") ?? 1
+            let chapter = Chapter(rawValue: max(0, min(Chapter.count - 1, number - 1))) ?? .birth
             let phase: Phase? = switch raw {
-            case "flight", "focus": .focus
+            case "journey", "flight", "focus": .journey
             case "arrival": .arrival
             case "rest": .rest
-            case "ready", "restDone": .restDone
+            case "choice", "ready": .choice
             case "idle": .idle
             default: nil
             }
-            if let phase { engine.debugJump(to: phase, progress: progress) }
+            if let phase { engine.debugJump(to: phase, progress: progress, chapter: chapter) }
         }
     }
 
     // MARK: - Phase reactions
 
     private func phaseChanged(from old: Phase, to new: Phase) {
-        model.forcedByPhase = (new == .arrival || new == .rest)
+        model.forcedByPhase = (new == .arrival)
 
         switch new {
-        case .focus where old == .idle || old == .restDone:
+        case .journey where old != .journey:
             Feedback.play(.takeoff)
         case .arrival:
             Feedback.play(.arrival)
             Feedback.haptic()
             Feedback.notify(
-                title: "Дракон долетел до Королевской Гавани",
-                body: "25 минут фокуса позади. Теперь 5 минут отдыха с Дейенерис."
+                title: "Глава \(engine.chapter.number) пройдена",
+                body: "\(engine.chapter.title). Дальше: в путь или отдых?"
             )
-        case .restDone:
-            Feedback.play(.restDone)
-            Feedback.haptic()
-            Feedback.notify(title: "Отдых окончен", body: "Дракон отдохнул. Ещё полёт?")
-            model.hold(for: 8)
+        case .choice:
+            if old == .rest {
+                Feedback.play(.restDone)
+                Feedback.notify(title: "Отдых окончен", body: "Дракон отдохнул. В путь?")
+            }
+            model.hold(for: 20)
         default:
             break
+        }
+    }
+
+    /// Scenes stop drawing while the screen is asleep.
+    private func observeSleep() {
+        let nc = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.screensDidSleepNotification, NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
+            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.model.isAwake = false }
+            }
+        }
+        for name in [NSWorkspace.screensDidWakeNotification, NSWorkspace.didWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
+            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.model.isAwake = true }
+            }
         }
     }
 
@@ -87,19 +106,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        let chapter = engine.story.current
         switch engine.phase {
-        case .idle, .restDone:
-            menu.addItem(item("Взлететь · 25 минут", #selector(startFlight)))
-        case .focus:
-            menu.addItem(item(engine.isPaused ? "Продолжить полёт" : "Пауза", #selector(togglePause)))
-            menu.addItem(item("Отменить полёт", #selector(cancelFlight)))
-        case .arrival, .rest:
-            let left = TimeText.mmss(engine.remaining())
-            let info = NSMenuItem(title: "Отдых обязателен · \(left)", action: nil, keyEquivalent: "")
+        case .idle:
+            let m = engine.nextJourneyIsFixed ? 25 : model.journeyMinutes
+            menu.addItem(item("В путь · глава \(chapter.number) · \(m) мин", #selector(startJourney)))
+        case .choice:
+            let m = engine.nextJourneyIsFixed ? 25 : model.journeyMinutes
+            menu.addItem(item("В путь · глава \(chapter.number) · \(m) мин", #selector(startJourney)))
+            menu.addItem(item("Отдых · \(model.restMinutes) мин", #selector(startRest)))
+        case .journey:
+            menu.addItem(item(engine.isPaused ? "Продолжить путь" : "Пауза", #selector(togglePause)))
+            menu.addItem(item("Отменить путь", #selector(cancelJourney)))
+        case .arrival:
+            let info = NSMenuItem(title: "Глава пройдена…", action: nil, keyEquivalent: "")
             info.isEnabled = false
             menu.addItem(info)
+        case .rest:
+            menu.addItem(item("Закончить отдых", #selector(endRest)))
         }
-        let flights = NSMenuItem(title: "Полётов сегодня: \(engine.flightsToday)", action: nil, keyEquivalent: "")
+        let flights = NSMenuItem(title: "Путей сегодня: \(engine.flightsToday) · история пройдена раз: \(engine.story.finishedStories)", action: nil, keyEquivalent: "")
         flights.isEnabled = false
         menu.addItem(.separator())
         menu.addItem(flights)
@@ -113,8 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
-    @objc private func startFlight() { engine.start() }
+    @objc private func startJourney() { engine.startJourney(minutes: model.journeyMinutes) }
+    @objc private func startRest() { engine.startRest(minutes: model.restMinutes) }
+    @objc private func endRest() { engine.endRestEarly() }
     @objc private func togglePause() { engine.togglePause() }
-    @objc private func cancelFlight() { engine.cancel() }
+    @objc private func cancelJourney() { engine.cancel() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

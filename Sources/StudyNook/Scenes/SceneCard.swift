@@ -1,35 +1,36 @@
 import SwiftUI
 import StudyNookCore
 
-/// Scene card in the expanded island. Redrawn every frame while the island is open.
+/// Scene card in the expanded island.
+/// Two layers keep the battery happy: the slow background is redrawn once a second,
+/// the foreground at 20 fps (12 fps with Low Power Mode or Reduce Motion), and nothing is drawn while the screen sleeps.
 struct SceneCard: View {
     let engine: PomodoroEngine
+    let model: NotchViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let phase = engine.phase
-        let paused = engine.isPaused
-        TimelineView(.animation) { ctx in
-            let date = ctx.date
-            let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 86_400) * (reduceMotion ? 0.3 : 1)
-            let p = engine.progress(at: date)
-            Canvas { c, size in
-                switch phase {
-                case .idle:
-                    IdlePainter.draw(c, size: size, t: t, ready: false)
-                case .restDone:
-                    IdlePainter.draw(c, size: size, t: t, ready: true)
-                case .focus:
-                    FlightPainter.draw(c, size: size, progress: p, t: t, paused: paused, arrival: nil)
-                case .arrival:
-                    FlightPainter.draw(c, size: size, progress: 1, t: t, paused: false, arrival: p)
-                case .rest:
-                    RestPainter.draw(c, size: size, progress: p, t: t)
+        let chapter = engine.chapter
+        let total = max(1, engine.duration(of: phase))
+        let slow = reduceMotion || ProcessInfo.processInfo.isLowPowerModeEnabled
+        ZStack {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                let p = engine.progress(at: ctx.date)
+                Canvas(opaque: true) { c, size in
+                    StoryScenes.background(c, SceneEnv(size: size, t: 0, p: p, total: total), phase: phase, chapter: chapter)
                 }
             }
-            .id(phase)
-            .transition(.opacity)
+            TimelineView(.animation(minimumInterval: slow ? 1.0 / 12.0 : 1.0 / 20.0, paused: !model.isAwake)) { ctx in
+                let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 86_400) * (reduceMotion ? 0.3 : 1)
+                let p = engine.progress(at: ctx.date)
+                Canvas { c, size in
+                    StoryScenes.foreground(c, SceneEnv(size: size, t: t, p: p, total: total), phase: phase, chapter: chapter)
+                }
+            }
         }
-        .animation(.easeInOut(duration: 0.7), value: phase)
+        .id("\(phase.rawValue)-\(chapter.rawValue)")
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.6), value: phase)
     }
 }

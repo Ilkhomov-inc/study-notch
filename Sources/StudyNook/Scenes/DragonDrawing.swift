@@ -1,4 +1,5 @@
 import SwiftUI
+import StudyNookCore
 
 struct DragonPalette {
     var body: Color
@@ -23,6 +24,62 @@ struct DragonPalette {
         horn: Color(red: 0.90, green: 0.82, blue: 0.68),
         glowEye: true
     )
+
+    /// Green and bronze.
+    static let rhaegal = DragonPalette(
+        body: Color(red: 0.20, green: 0.38, blue: 0.20),
+        bodyDark: Color(red: 0.07, green: 0.17, blue: 0.10),
+        belly: Color(red: 0.72, green: 0.62, blue: 0.30),
+        wing: Color(red: 0.26, green: 0.46, blue: 0.24),
+        wingFar: Color(red: 0.12, green: 0.26, blue: 0.14),
+        wingEdge: Color(red: 0.86, green: 0.66, blue: 0.30),
+        eye: Color(red: 1.0, green: 0.78, blue: 0.3),
+        horn: Color(red: 0.82, green: 0.66, blue: 0.34),
+        glowEye: true
+    )
+
+    /// Cream and gold.
+    static let viserion = DragonPalette(
+        body: Color(red: 0.88, green: 0.82, blue: 0.64),
+        bodyDark: Color(red: 0.62, green: 0.54, blue: 0.38),
+        belly: Color(red: 0.97, green: 0.92, blue: 0.78),
+        wing: Color(red: 0.92, green: 0.84, blue: 0.62),
+        wingFar: Color(red: 0.70, green: 0.62, blue: 0.44),
+        wingEdge: Color(red: 0.96, green: 0.78, blue: 0.36),
+        eye: Color(red: 0.55, green: 0.36, blue: 0.12),
+        horn: Color(red: 0.96, green: 0.8, blue: 0.4),
+        glowEye: false
+    )
+
+    /// Undead Viserion: ice-white with blue eyes.
+    static let undead = DragonPalette(
+        body: Color(red: 0.66, green: 0.78, blue: 0.88),
+        bodyDark: Color(red: 0.30, green: 0.42, blue: 0.55),
+        belly: Color(red: 0.82, green: 0.9, blue: 0.96),
+        wing: Color(red: 0.55, green: 0.70, blue: 0.84),
+        wingFar: Color(red: 0.34, green: 0.46, blue: 0.62),
+        wingEdge: Color(red: 0.7, green: 0.9, blue: 1.0),
+        eye: Color(red: 0.4, green: 0.8, blue: 1.0),
+        horn: Color(red: 0.8, green: 0.92, blue: 1.0),
+        glowEye: true
+    )
+
+    /// A memory of a fallen dragon: translucent and pale.
+    static func ghost(_ d: Dragon) -> DragonPalette {
+        let tint = Color(red: 0.75, green: 0.85, blue: 1.0)
+        let base = d == .viserion ? DragonPalette.viserion : DragonPalette.rhaegal
+        return DragonPalette(body: tint.opacity(0.42), bodyDark: tint.opacity(0.3), belly: tint.opacity(0.5),
+                             wing: tint.opacity(0.32), wingFar: tint.opacity(0.2), wingEdge: base.wingEdge.opacity(0.5),
+                             eye: tint.opacity(0.8), horn: tint.opacity(0.6), glowEye: false)
+    }
+
+    static func of(_ d: Dragon) -> DragonPalette {
+        switch d {
+        case .drogon: .drogon
+        case .rhaegal: .rhaegal
+        case .viserion: .viserion
+        }
+    }
 
     /// One color: for the tiny dragon in the collapsed island.
     static func mono(_ c: Color) -> DragonPalette {
@@ -59,6 +116,31 @@ enum DragonPainter {
     static func mouth(_ pose: DragonPose) -> CGPoint {
         let head = CGAffineTransform(translationX: flyHeadBase.x, y: flyHeadBase.y).rotated(by: flyHeadAngle)
         return pose.world(mouthLocal.applying(head))
+    }
+
+    // MARK: - Tiny silhouette
+
+    /// One flat color, a single fill, no gradients: cheap enough for the collapsed island.
+    static func drawSilhouette(_ c: GraphicsContext, pose: DragonPose, flapPhase: Double, color: Color) {
+        var g = c
+        g.concatenate(pose.transform)
+        let f = sin(flapPhase)
+        let s = CGFloat(-0.45 + (f + 1) / 2 * 1.45)
+        var p = Path()
+        p.addEllipse(in: CGRect(x: -21, y: -8.5, width: 42, height: 17))
+        p.addPath(Ink.tapered(Ink.quad(CGPoint(x: -14, y: 1), CGPoint(x: -36, y: 4), CGPoint(x: -62, y: -1)), 8, 1.5))
+        p.addPath(Ink.tapered(Ink.quad(CGPoint(x: 14, y: -2), CGPoint(x: 26, y: -8), CGPoint(x: 34, y: -12)), 11, 6.5))
+        p.addEllipse(in: CGRect(x: 30, y: -17, width: 18, height: 9))
+        for (dx, k) in [(3.0, 1.0), (-6.0, 0.8)] {
+            var w = Path()
+            w.move(to: CGPoint(x: dx, y: -6))
+            w.addLine(to: CGPoint(x: dx + 14, y: -6 - 24 * s * k))
+            w.addLine(to: CGPoint(x: dx - 14, y: -6 - 34 * s * k))
+            w.addLine(to: CGPoint(x: dx - 20, y: -4))
+            w.closeSubpath()
+            p.addPath(w)
+        }
+        g.fill(p, with: .color(color))
     }
 
     // MARK: - Flying
@@ -305,8 +387,8 @@ struct RestDragonRig {
     let headAngle: Double
 
     /// lift 0...1: how much the dragon pushes its head up into the hand.
-    init(base: CGPoint, scale: CGFloat, t: Double, lift: Double) {
-        pose = DragonPose(position: base, angle: 0, scale: scale, flip: -1)
+    init(base: CGPoint, scale: CGFloat, t: Double, lift: Double, mirrored: Bool = false) {
+        pose = DragonPose(position: base, angle: 0, scale: scale, flip: mirrored ? 1 : -1)
         breath = sin(t * 2 * .pi / 3.3)
         headBase = CGPoint(x: 15 + 0.6 * lift, y: -25 - 1.2 * lift)
         headAngle = 0.34 - 0.16 * lift
@@ -325,7 +407,8 @@ struct MiniDragonView: View {
     let paused: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+        // The tiny dragon in the collapsed island runs at 6 fps: it is the only thing animating there.
+        TimelineView(.animation(minimumInterval: 1.0 / 6.0)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 86_400)
             Canvas { c, size in
                 let bob = CGFloat(sin(t * 2 * .pi * 0.9)) * 0.8
@@ -333,8 +416,7 @@ struct MiniDragonView: View {
                     position: CGPoint(x: size.width * 0.46, y: size.height * 0.66 + bob),
                     angle: 0, scale: size.width / 120, flip: -1
                 )
-                DragonPainter.drawFlying(c, pose: pose, flapPhase: t * 2 * .pi * (paused ? 0.6 : 1.6), t: t,
-                                         palette: .mono(color))
+                DragonPainter.drawSilhouette(c, pose: pose, flapPhase: t * 2 * .pi * (paused ? 0.6 : 1.4), color: color)
             }
         }
         .frame(width: 36, height: 22)

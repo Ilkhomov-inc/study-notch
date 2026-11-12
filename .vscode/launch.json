@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:study.nook}",
+            "name": "Debug StudyNook",
+            "target": "StudyNook",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug StudyNook"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:study.nook}",
+            "name": "Release StudyNook",
+            "target": "StudyNook",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release StudyNook"
+        }
+    ]
+}

@@ -13,9 +13,9 @@ private func makeEngine() -> (PomodoroEngine, FakeClock) {
     let clock = FakeClock()
     let defaults = UserDefaults(suiteName: "studynook.tests.\(UUID().uuidString)")!
     let engine = PomodoroEngine(
-        durations: .standard,
         now: { clock.now },
-        log: FlightLog(defaults: defaults)
+        log: FlightLog(defaults: defaults),
+        story: StoryProgress(defaults: defaults)
     )
     return (engine, clock)
 }
@@ -23,55 +23,81 @@ private func makeEngine() -> (PomodoroEngine, FakeClock) {
 @MainActor
 @Suite("PomodoroEngine")
 struct PomodoroEngineTests {
-    @Test("Focus lasts 25 minutes, then landing and a 5-minute rest")
-    func fullCycle() {
-        let (engine, clock) = makeEngine()
-        engine.start()
-        #expect(engine.phase == .focus)
+    @Test("The first journey of the day is always 25 minutes")
+    func firstJourneyIsFixed() {
+        let (engine, _) = makeEngine()
+        #expect(engine.nextJourneyIsFixed)
+        engine.startJourney(minutes: 60)
+        #expect(engine.phase == .journey)
+        #expect(engine.plannedMinutes == 25)
         #expect(engine.remaining() == 25 * 60)
+    }
 
-        clock.advance(25 * 60 - 1)
-        engine.tick()
-        #expect(engine.phase == .focus)
-        #expect(engine.remaining() == 1)
-
-        clock.advance(1)
+    @Test("After a journey comes arrival, then a free choice")
+    func journeyThenChoice() {
+        let (engine, clock) = makeEngine()
+        engine.startJourney()
+        clock.advance(25 * 60)
         engine.tick()
         #expect(engine.phase == .arrival)
+        #expect(engine.chapter == .birth)
 
         clock.advance(engine.durations.arrival)
         engine.tick()
-        #expect(engine.phase == .rest)
-        #expect(engine.remaining() == 5 * 60)
+        #expect(engine.phase == .choice)
+        #expect(!engine.nextJourneyIsFixed)
+        #expect(engine.canStartJourney)
+        #expect(engine.canRest)
 
-        clock.advance(5 * 60)
+        clock.advance(60 * 60)
         engine.tick()
-        #expect(engine.phase == .restDone)
+        #expect(engine.phase == .choice)
     }
 
-    @Test("Rest cannot be paused, cancelled or skipped")
-    func restIsMandatory() {
+    @Test("Later journeys use the chosen length and the next chapter")
+    func chosenLength() {
         let (engine, clock) = makeEngine()
-        engine.debugJump(to: .rest, progress: 0.2)
-        #expect(!engine.canPause)
-        #expect(!engine.canCancel)
-        #expect(!engine.canStart)
-
-        engine.pause()
-        engine.cancel()
-        engine.start()
-        #expect(engine.phase == .rest)
-        #expect(!engine.isPaused)
-
-        clock.advance(60)
+        engine.startJourney()
+        clock.advance(25 * 60 + 10)
         engine.tick()
+        engine.startJourney(minutes: 45)
+        #expect(engine.plannedMinutes == 45)
+        #expect(engine.chapter == .qarth)
+        #expect(engine.remaining() == 45 * 60)
+    }
+
+    @Test("Rest is optional and can be ended early")
+    func restIsOptional() {
+        let (engine, clock) = makeEngine()
+        engine.startJourney()
+        clock.advance(25 * 60 + 10)
+        engine.tick()
+        #expect(engine.phase == .choice)
+
+        engine.startRest(minutes: 10)
         #expect(engine.phase == .rest)
+        #expect(engine.chapter == .birth)
+        #expect(engine.remaining() == 10 * 60)
+
+        clock.advance(2 * 60)
+        engine.endRestEarly()
+        #expect(engine.phase == .choice)
+    }
+
+    @Test("Rest ends by itself and returns to the choice")
+    func restEnds() {
+        let (engine, clock) = makeEngine()
+        engine.debugJump(to: .choice, progress: 1, chapter: .birth)
+        engine.startRest(minutes: 5)
+        clock.advance(5 * 60)
+        engine.tick()
+        #expect(engine.phase == .choice)
     }
 
     @Test("Pause keeps the remaining time")
     func pauseKeepsRemaining() {
         let (engine, clock) = makeEngine()
-        engine.start()
+        engine.startJourney()
         clock.advance(10 * 60)
         engine.pause()
         #expect(engine.isPaused)
@@ -79,8 +105,7 @@ struct PomodoroEngineTests {
 
         clock.advance(60 * 60)
         engine.tick()
-        #expect(engine.phase == .focus)
-        #expect(engine.remaining() == 15 * 60)
+        #expect(engine.phase == .journey)
 
         engine.resume()
         clock.advance(15 * 60)
@@ -88,45 +113,38 @@ struct PomodoroEngineTests {
         #expect(engine.phase == .arrival)
     }
 
-    @Test("A completed flight is counted, a cancelled one is not")
-    func flightCounter() {
+    @Test("A cancelled journey is not counted and the chapter stays the same")
+    func cancelKeepsChapter() {
         let (engine, clock) = makeEngine()
-        engine.start()
+        engine.startJourney()
         clock.advance(5 * 60)
         engine.cancel()
         #expect(engine.phase == .idle)
         #expect(engine.flightsToday == 0)
-
-        engine.start()
-        clock.advance(25 * 60)
-        engine.tick()
-        #expect(engine.flightsToday == 1)
+        #expect(engine.chapter == .birth)
+        #expect(engine.nextJourneyIsFixed)
     }
 
-    @Test("If the Mac slept through focus and rest, the cycle catches up")
+    @Test("If the Mac slept through the journey, the cycle catches up")
     func sleepCatchUp() {
         let (engine, clock) = makeEngine()
-        engine.start()
+        engine.startJourney()
         clock.advance(2 * 60 * 60)
         engine.tick()
-        #expect(engine.phase == .restDone)
+        #expect(engine.phase == .choice)
         #expect(engine.flightsToday == 1)
     }
 
-    @Test("After rest the next flight waits for the user")
-    func nextFlightIsManual() {
-        let (engine, clock) = makeEngine()
-        engine.debugJump(to: .rest, progress: 0.99)
-        clock.advance(10)
-        engine.tick()
-        #expect(engine.phase == .restDone)
-
-        clock.advance(10 * 60)
-        engine.tick()
-        #expect(engine.phase == .restDone)
-
-        engine.start()
-        #expect(engine.phase == .focus)
+    @Test("The story goes through 12 chapters and starts over")
+    func storyWraps() {
+        let defaults = UserDefaults(suiteName: "studynook.tests.\(UUID().uuidString)")!
+        let story = StoryProgress(defaults: defaults)
+        #expect(story.current == .birth)
+        for _ in 0..<11 { story.advance() }
+        #expect(story.current == .epilogue)
+        story.advance()
+        #expect(story.current == .birth)
+        #expect(story.finishedStories == 1)
     }
 
     @Test("Phase changes are reported in order")
@@ -134,9 +152,9 @@ struct PomodoroEngineTests {
         let (engine, clock) = makeEngine()
         var seen: [Phase] = []
         engine.onPhaseChange = { _, new in seen.append(new) }
-        engine.start()
+        engine.startJourney()
         clock.advance(2 * 60 * 60)
         engine.tick()
-        #expect(seen == [.focus, .arrival, .rest, .restDone])
+        #expect(seen == [.journey, .arrival, .choice])
     }
 }

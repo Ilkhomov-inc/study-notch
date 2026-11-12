@@ -8,29 +8,29 @@ enum Theme {
 
     static func accent(_ phase: Phase) -> Color {
         switch phase {
-        case .focus, .arrival: focus
+        case .journey, .arrival: focus
         case .rest: rest
-        case .idle, .restDone: .white
+        case .idle, .choice: .white
         }
     }
 
-    static func title(_ phase: Phase) -> String {
+    static func title(_ phase: Phase, chapter: Chapter) -> String {
         switch phase {
         case .idle: "ГОТОВ"
-        case .focus: "ФОКУС"
-        case .arrival: "ПРИЛЁТ"
+        case .journey: "ГЛАВА \(chapter.number)"
+        case .arrival: "ПРИБЫТИЕ"
+        case .choice: "ВЫБОР"
         case .rest: "ОТДЫХ"
-        case .restDone: "ОТДОХНУЛИ"
         }
     }
 
-    static func label(_ phase: Phase, paused: Bool) -> String {
+    static func label(_ phase: Phase, chapter: Chapter, paused: Bool) -> String {
         switch phase {
-        case .idle: "Драконий Камень · готов к полёту"
-        case .focus: paused ? "Дракон парит · пауза" : "Полёт в Королевскую Гавань"
-        case .arrival: "Королевская Гавань!"
-        case .rest: "Отдых с Дейенерис"
-        case .restDone: "Ещё полёт?"
+        case .idle: "Глава \(chapter.number) · \(chapter.title)"
+        case .journey: paused ? "Пауза · \(chapter.title)" : chapter.title
+        case .arrival: "Глава \(chapter.number) пройдена"
+        case .choice: "Что дальше?"
+        case .rest: "Отдых · \(chapter.title)"
         }
     }
 }
@@ -48,15 +48,14 @@ struct CompactContent: View {
             leading(phase, accent)
                 .frame(width: NotchLayout.wing - NotchLayout.collapsedTopRadius)
             Color.clear.frame(width: model.metrics.notchWidth)
-            TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
+            // Collapsed: the clock only needs to change once a second.
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 let left = phase == .arrival ? 0 : engine.remaining(at: ctx.date)
-                Text(phase == .restDone ? "готово" : TimeText.mmss(left))
+                // No digit animation here: it would redraw the text at display rate every second.
+                Text(phase == .choice ? "выбор" : TimeText.mmss(left))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(accent)
-                    .contentTransition(.numericText(countsDown: true))
-                    .animation(.snappy, value: Int(ceil(left)))
-                    .scaleEffect(phase == .focus && left < 10 && left > 0 ? 1 + 0.08 * (1 - M.fract(left)) : 1)
             }
             .frame(width: NotchLayout.wing - NotchLayout.collapsedTopRadius)
         }
@@ -66,7 +65,7 @@ struct CompactContent: View {
 
     @ViewBuilder
     private func leading(_ phase: Phase, _ accent: Color) -> some View {
-        if phase == .focus {
+        if phase == .journey {
             MiniDragonView(color: accent, paused: engine.isPaused)
         } else {
             let symbol = switch phase {
@@ -77,7 +76,6 @@ struct CompactContent: View {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(accent)
-                .symbolEffect(.pulse, isActive: phase == .rest || phase == .arrival)
         }
     }
 }
@@ -90,14 +88,15 @@ struct ExpandedContent: View {
 
     var body: some View {
         let phase = engine.phase
+        let chapter = engine.chapter
         let accent = Theme.accent(phase)
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in
                     HStack(spacing: 6) {
                         ProgressRing(remaining: 1 - engine.progress(at: ctx.date), color: accent)
                             .frame(width: 13, height: 13)
-                        Text(Theme.title(phase))
+                        Text(Theme.title(phase, chapter: chapter))
                             .font(.system(size: 10.5, weight: .bold, design: .rounded))
                             .tracking(0.6)
                             .foregroundStyle(accent)
@@ -111,30 +110,34 @@ struct ExpandedContent: View {
             .padding(.horizontal, 26)
             .frame(height: model.metrics.notchHeight)
 
-            SceneCard(engine: engine)
+            SceneCard(engine: engine, model: model)
                 .frame(height: NotchLayout.sceneHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .mask(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
 
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: -2) {
-                    Text(Theme.label(phase, paused: engine.isPaused))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                    TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
-                        // Landing is not part of the 25 minutes: the focus clock stays at zero.
-                        let left = phase == .arrival ? 0 : engine.remaining(at: ctx.date)
-                        Text(TimeText.mmss(left))
-                            .font(.system(size: 38, weight: .light, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(accent)
-                            .contentTransition(.numericText(countsDown: true))
-                            .animation(.snappy, value: Int(ceil(left)))
+            Group {
+                if phase == .choice {
+                    ChoiceView(engine: engine, model: model)
+                } else {
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: -2) {
+                            Text(Theme.label(phase, chapter: chapter, paused: engine.isPaused))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .lineLimit(1)
+                            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                                let left = phase == .arrival ? 0 : engine.remaining(at: ctx.date)
+                                Text(TimeText.mmss(left))
+                                    .font(.system(size: 38, weight: .light, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(accent)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Controls(engine: engine, model: model)
                     }
                 }
-                Spacer(minLength: 0)
-                Controls(engine: engine)
             }
             .padding(.horizontal, 22)
             .padding(.top, 8)
@@ -148,28 +151,113 @@ struct ExpandedContent: View {
 /// Round buttons like the Apple timer: grey ✕ and orange pause/start.
 struct Controls: View {
     let engine: PomodoroEngine
+    let model: NotchViewModel
 
     var body: some View {
         HStack(spacing: 12) {
             switch engine.phase {
             case .idle:
-                CircleButton(symbol: "play.fill", tint: Theme.focus) { engine.start() }
-            case .restDone:
-                CircleButton(symbol: "xmark", tint: .white, fill: .white.opacity(0.14)) { engine.cancel() }
-                CircleButton(symbol: "play.fill", tint: Theme.focus) { engine.start() }
-            case .focus:
+                CircleButton(symbol: "play.fill", tint: Theme.focus) {
+                    engine.startJourney(minutes: model.journeyMinutes)
+                }
+            case .journey:
                 CircleButton(symbol: "xmark", tint: .white, fill: .white.opacity(0.14)) { engine.cancel() }
                 CircleButton(symbol: engine.isPaused ? "play.fill" : "pause.fill", tint: Theme.focus) { engine.togglePause() }
-            case .arrival, .rest:
-                Label(engine.phase == .arrival ? "Посадка…" : "Отдых обязателен", systemImage: "lock.fill")
+            case .rest:
+                Button { engine.endRestEarly() } label: {
+                    Label("Закончить отдых", systemImage: "forward.end.fill")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.rest)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Capsule().fill(Theme.rest.opacity(0.16)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableStyle())
+            case .arrival, .choice:
+                Label("Прибытие…", systemImage: "sparkles")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Theme.rest)
+                    .foregroundStyle(Theme.focus)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Capsule().fill(Theme.rest.opacity(0.15)))
+                    .background(Capsule().fill(Theme.focus.opacity(0.15)))
             }
         }
         .animation(NotchLayout.spring, value: engine.phase)
+    }
+}
+
+/// After a journey: "В путь" or "Отдых", each with its own minute chips.
+struct ChoiceView: View {
+    let engine: PomodoroEngine
+    let model: NotchViewModel
+
+    var body: some View {
+        let fixed = engine.nextJourneyIsFixed
+        HStack(alignment: .top, spacing: 14) {
+            column(
+                title: "В путь",
+                symbol: "figure.walk.motion",
+                tint: Theme.focus,
+                options: fixed ? [PomodoroEngine.firstJourneyMinutes] : PomodoroEngine.journeyOptions,
+                selection: fixed ? PomodoroEngine.firstJourneyMinutes : model.journeyMinutes
+            ) { m in
+                model.journeyMinutes = m
+            } go: {
+                engine.startJourney(minutes: model.journeyMinutes)
+            }
+            column(
+                title: "Отдых",
+                symbol: "moon.stars.fill",
+                tint: Theme.rest,
+                options: PomodoroEngine.restOptions,
+                selection: model.restMinutes
+            ) { m in
+                model.restMinutes = m
+            } go: {
+                engine.startRest(minutes: model.restMinutes)
+            }
+        }
+    }
+
+    private func column(
+        title: String, symbol: String, tint: Color, options: [Int], selection: Int,
+        pick: @escaping (Int) -> Void, go: @escaping () -> Void
+    ) -> some View {
+        VStack(spacing: 6) {
+            Button(action: go) {
+                HStack(spacing: 6) {
+                    Image(systemName: symbol)
+                    Text("\(title) · \(selection) мин")
+                }
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(Capsule().fill(tint.opacity(0.2)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(PressableStyle())
+
+            HStack(spacing: 5) {
+                ForEach(options, id: \.self) { m in
+                    Button { pick(m) } label: {
+                        // With a single option the chip explains why: the first journey of the day is always 25.
+                        Text(options.count == 1 ? "\(m) · первый путь дня" : "\(m)")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(m == selection ? .black : .white.opacity(0.7))
+                            .padding(.horizontal, options.count == 1 ? 6 : 0)
+                            .frame(minWidth: 26)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(m == selection ? tint : .white.opacity(0.12)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -217,7 +305,7 @@ struct ProgressRing: View {
     }
 }
 
-/// Dragon eggs: one per completed flight today.
+/// Dragon eggs: one per completed journey today.
 struct EggCounter: View {
     let flights: Int
 
@@ -232,6 +320,6 @@ struct EggCounter: View {
                     .frame(width: 8, height: 10.5)
             }
         }
-        .help("Полётов сегодня: \(flights)")
+        .help("Путей сегодня: \(flights)")
     }
 }
