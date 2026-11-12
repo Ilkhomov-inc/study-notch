@@ -252,20 +252,7 @@ enum JourneyLate {
         let u = env.u, hy = env.hy
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB(0.02, 0.03, 0.08), skyBottom: RGB(0.12, 0.14, 0.26), stars: 0.5,
             ground: .land(far: RGB(0.38, 0.44, 0.56), near: RGB(0.14, 0.16, 0.24))))
-        // Winterfell: walls and towers with lit windows.
-        let stone = RGB(0.12, 0.13, 0.18)
-        c.fill(Path(CGRect(x: env.w * 0.02, y: hy - 16 * u, width: env.w * 0.4, height: 20 * u)), with: .color(stone.color()))
-        for i in 0..<5 {
-            let x = env.w * (0.04 + 0.085 * CGFloat(i)), hh = (30 + 22 * M.rand(i, 7)) * u
-            c.fill(Path(CGRect(x: x, y: hy - hh, width: 12 * u, height: hh + 4 * u)), with: .color(stone.color()))
-            var r = Path()
-            r.move(to: CGPoint(x: x - 2 * u, y: hy - hh)); r.addLine(to: CGPoint(x: x + 6 * u, y: hy - hh - 10 * u)); r.addLine(to: CGPoint(x: x + 14 * u, y: hy - hh))
-            r.closeSubpath()
-            c.fill(r, with: .color(RGB(0.1, 0.1, 0.15).color()))
-            for k in 0..<3 {
-                c.fill(Path(CGRect(x: x + 4.5 * u, y: hy - hh + (6 + CGFloat(k) * 9) * u, width: 2.4 * u, height: 4 * u)), with: .color(RGB(1, 0.7, 0.35).color(0.8)))
-            }
-        }
+        Buildings.winterfell(c, env)
         Stage.hills(c, env, color: RGB(0.2, 0.24, 0.34), y: hy + 8 * u, amp: 3 * u, freq: 2.4, phase: 1)
     }
 
@@ -352,12 +339,9 @@ enum JourneyLate {
         let k = M.smoothstep(0.1, 0.8, p)
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB.lerp(RGB(0.28, 0.14, 0.34), Backdrop.fireSky.0, k), skyBottom: RGB.lerp(RGB(1, 0.58, 0.32), Backdrop.fireSky.1, k),
             sun: nil, ground: .sea(top: RGB.lerp(RGB(0.4, 0.26, 0.34), RGB(0.5, 0.2, 0.1), k), bottom: RGB(0.06, 0.04, 0.08))))
-        Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.74, y: hy - 4 * u), u: 1.5 * u, t: 0, lit: 1 - k, land: RGB(0.2, 0.1, 0.1))
-        // City walls.
-        c.fill(Path(CGRect(x: env.w * 0.5, y: hy - 2 * u, width: env.w * 0.5, height: 10 * u)), with: .color(RGB(0.3, 0.2, 0.18).color()))
-        for i in 0..<16 {
-            c.fill(Path(CGRect(x: env.w * 0.5 + CGFloat(i) * env.w * 0.032, y: hy - 5 * u, width: 6 * u, height: 4 * u)), with: .color(RGB(0.3, 0.2, 0.18).color()))
-        }
+        Landscape.kingsLanding(c, base: CGPoint(x: env.w * 0.74, y: hy - 2 * u), u: 1.55 * u, t: 0, lit: 1 - k, land: RGB(0.2, 0.1, 0.1))
+        // Surf along the shore of the city.
+        c.stroke(Ink.ellipse(CGPoint(x: env.w * 0.74, y: hy + 17 * u), 70 * u, 2.4 * u), with: .color(.white.opacity(0.28)), lineWidth: 0.8 * u)
     }
 
     static func landingForeground(_ c: GraphicsContext, _ env: SceneEnv) {

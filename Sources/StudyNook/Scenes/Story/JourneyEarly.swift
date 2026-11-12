@@ -24,36 +24,12 @@ enum JourneyEarly {
             let top = RGB.lerp(Backdrop.dawnSky.0, Backdrop.daySky.0, l), bot = RGB.lerp(Backdrop.dawnSky.1, Backdrop.daySky.1, l)
             Stage.paintBackdrop(c, env, Backdrop(skyTop: top, skyBottom: bot,
                 sun: (0.8, 0.5 - 0.25 * CGFloat(l), RGB(1, 0.9, 0.7), 8), ground: .land(far: RGB(0.80, 0.72, 0.58), near: RGB(0.56, 0.46, 0.36))))
-            // White villa with arches and orange trees.
-            let wall = RGB(0.93, 0.88, 0.80)
-            for i in 0..<3 {
-                let x = env.w * (0.06 + 0.46 * CGFloat(i)), ww = 120 * u
-                c.fill(Path(CGRect(x: x, y: hy - 38 * u, width: ww, height: 40 * u)), with: .color(wall.color()))
-                c.fill(Path(CGRect(x: x - 4 * u, y: hy - 41 * u, width: ww + 8 * u, height: 4 * u)), with: .color(RGB(0.78, 0.45, 0.30).color()))
-                for k in 0..<4 {
-                    let ax = x + (10 + CGFloat(k) * 28) * u
-                    var arch = Path()
-                    arch.move(to: CGPoint(x: ax, y: hy + 2 * u))
-                    arch.addLine(to: CGPoint(x: ax, y: hy - 18 * u))
-                    arch.addQuadCurve(to: CGPoint(x: ax + 14 * u, y: hy - 18 * u), control: CGPoint(x: ax + 7 * u, y: hy - 30 * u))
-                    arch.addLine(to: CGPoint(x: ax + 14 * u, y: hy + 2 * u))
-                    arch.closeSubpath()
-                    c.fill(arch, with: .color(RGB(0.28, 0.2, 0.18).color()))
-                }
-            }
-            for i in 0..<7 {
-                let x = env.w * (0.15 + 0.13 * CGFloat(i))
-                c.fill(Path(CGRect(x: x - 0.8 * u, y: hy - 4 * u, width: 1.6 * u, height: 8 * u)), with: .color(RGB(0.3, 0.2, 0.12).color()))
-                c.fill(Ink.circle(CGPoint(x: x, y: hy - 9 * u), 6 * u), with: .color(RGB(0.28, 0.5, 0.22).color()))
-                for k in 0..<3 {
-                    c.fill(Ink.circle(CGPoint(x: x + CGFloat(k - 1) * 3 * u, y: hy - 8 * u + CGFloat(k % 2) * 3 * u), 1.2 * u), with: .color(RGB(1, 0.6, 0.1).color()))
-                }
-            }
+            Buildings.pentos(c, env)
         case 1: // Red Waste
             let top = RGB.lerp(Backdrop.daySky.0, RGB(0.5, 0.3, 0.3), l * 0.5), bot = RGB.lerp(RGB(0.95, 0.8, 0.6), Backdrop.duskSky.1, l)
             Stage.paintBackdrop(c, env, Backdrop(skyTop: top, skyBottom: bot,
                 sun: (0.25 + 0.5 * CGFloat(l), 0.4 + 0.2 * CGFloat(l), RGB(1, 0.85, 0.55), 10), ground: .land(far: RGB(0.86, 0.6, 0.38), near: RGB(0.62, 0.36, 0.22))))
-            Stage.hills(c, env, color: RGB(0.78, 0.5, 0.32), y: hy - 2 * u, amp: 6 * u, freq: 2.2, phase: 0.5)
+            Stage.hills(c, env, color: RGB(0.78, 0.5, 0.32), y: hy - 2 * u, amp: 6 * u, freq: 2.2, phase: 0.5, haze: RGB(0.97, 0.8, 0.6), hazeAmount: 0.55)
             Stage.hills(c, env, color: RGB(0.68, 0.42, 0.27), y: hy + 12 * u, amp: 5 * u, freq: 3.1, phase: 2)
         case 2: // Tent
             c.fill(Path(CGRect(origin: .zero, size: env.size)), with: .linearGradient(
@@ -245,19 +221,8 @@ enum JourneyEarly {
             Stage.paintBackdrop(c, env, Backdrop(skyTop: top, skyBottom: bot, sun: (0.22 + 0.2 * CGFloat(p), 0.42 + 0.2 * CGFloat(p), RGB(1, 0.85, 0.55), 10),
                 ground: .land(far: RGB(0.86, 0.62, 0.40), near: RGB(0.6, 0.36, 0.22))))
             Stage.hills(c, env, color: RGB(0.78, 0.52, 0.34), y: hy - 1 * u, amp: 5 * u, freq: 2.4, phase: 1)
-            // Qarth rises on the horizon: white towers and blue domes.
             let k = M.smoothstep(0.3, 0.75, p)
-            if k > 0.02 {
-                let x0 = M.lerp(env.w * 1.05, env.w * 0.55, CGFloat(k))
-                for i in 0..<9 {
-                    let x = x0 + CGFloat(i) * 11 * u
-                    let hh = (14 + 22 * M.rand(i, 14)) * u * CGFloat(0.5 + 0.5 * k)
-                    c.fill(Path(CGRect(x: x, y: hy - hh, width: 8 * u, height: hh + 2 * u)), with: .color(RGB(0.92, 0.9, 0.86).color()))
-                    var dome = Path()
-                    dome.addArc(center: CGPoint(x: x + 4 * u, y: hy - hh), radius: 4.4 * u, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
-                    c.fill(dome, with: .color(RGB(0.2, 0.5, 0.75).color()))
-                }
-            }
+            if k > 0.02 { Buildings.qarth(c, env, x0: M.lerp(env.w * 1.05, env.w * 0.5, CGFloat(k)), scale: CGFloat(0.5 + 0.5 * k)) }
         } else {
             // The House of the Undying.
             c.fill(Path(CGRect(origin: .zero, size: env.size)), with: .linearGradient(
@@ -319,16 +284,7 @@ enum JourneyEarly {
         let k = M.smoothstep(0, 1, p)
         Stage.paintBackdrop(c, env, Backdrop(skyTop: RGB.lerp(RGB(0.28, 0.4, 0.7), RGB(0.3, 0.2, 0.45), k), skyBottom: RGB.lerp(RGB(0.98, 0.8, 0.6), RGB(1, 0.55, 0.3), k),
             sun: (0.2 + 0.3 * CGFloat(k), 0.4 + 0.12 * CGFloat(k), RGB(1, 0.85, 0.55), 9), ground: .land(far: RGB(0.82, 0.58, 0.38), near: RGB(0.56, 0.34, 0.22))))
-        // Red-brick stepped pyramids.
-        for i in 0..<4 {
-            let x = env.w * (0.04 + 0.27 * CGFloat(i))
-            let w0 = (60 + 20 * CGFloat(M.rand(i, 3))) * u
-            for s in 0..<5 {
-                let ww = w0 * (1 - CGFloat(s) * 0.17), hh = 8 * u
-                c.fill(Path(CGRect(x: x + (w0 - ww) / 2, y: hy - CGFloat(s + 1) * hh + 4 * u, width: ww, height: hh)),
-                       with: .color(RGB(0.62 - 0.04 * Double(s), 0.28, 0.2).color()))
-            }
-        }
+        Buildings.astapor(c, env, t: 0)
         Stage.hills(c, env, color: RGB(0.7, 0.45, 0.3), y: hy + 14 * u, amp: 3 * u, freq: 2.6, phase: 0.3)
     }
 

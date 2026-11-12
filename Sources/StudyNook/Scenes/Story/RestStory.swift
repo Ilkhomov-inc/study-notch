@@ -84,6 +84,9 @@ enum RestStory {
             hill.closeSubpath()
             c.fill(hill, with: .linearGradient(Gradient(colors: [RGB(0.17, 0.10, 0.18).color(), RGB(0.06, 0.04, 0.09).color()]),
                                                startPoint: CGPoint(x: 0, y: B.y), endPoint: CGPoint(x: 0, y: env.h)))
+            var textured = c
+            textured.clip(to: hill)
+            Stage.groundTexture(textured, env, y0: B.y, y1: env.h, color: RGB(0.34, 0.24, 0.34), density: 70, seed: 5, grass: true)
             c.stroke(ridge, with: .color((isSad(ch) ? RGB(0.5, 0.6, 0.85) : RGB(1, 0.62, 0.42)).color(0.3)), lineWidth: u)
         }
     }

@@ -162,6 +162,16 @@ enum DragonPainter {
             steps: 18
         )
         c.fill(Ink.tapered(tail, 8, 1.2), with: .color(pal.body))
+        var tailSpikes = Path()
+        for k in stride(from: 2, to: tail.count - 4, by: 3) {
+            let a = tail[k], b = tail[k + 1]
+            let w = 3.4 * (1 - CGFloat(k) / CGFloat(tail.count))
+            tailSpikes.move(to: CGPoint(x: a.x - 1, y: a.y - 2))
+            tailSpikes.addLine(to: CGPoint(x: (a.x + b.x) / 2 - 0.4, y: a.y - 2 - w - 1.2))
+            tailSpikes.addLine(to: CGPoint(x: b.x + 0.6, y: b.y - 2))
+            tailSpikes.closeSubpath()
+        }
+        c.fill(tailSpikes, with: .color(pal.bodyDark))
         spade(c, tail, color: pal.bodyDark)
 
         // Tucked legs.
@@ -169,6 +179,15 @@ enum DragonPainter {
                with: .color(pal.bodyDark))
         c.fill(Ink.tapered(Ink.quad(CGPoint(x: 9, y: 4), CGPoint(x: 12, y: 10), CGPoint(x: 16, y: 9)), 4, 1.6),
                with: .color(pal.bodyDark))
+        for foot in [CGPoint(x: -21, y: 9), CGPoint(x: 16, y: 9)] {
+            var claws = Path()
+            for k in 0..<3 {
+                claws.move(to: CGPoint(x: foot.x - 1.2 + CGFloat(k) * 1.3, y: foot.y))
+                claws.addLine(to: CGPoint(x: foot.x - 0.6 + CGFloat(k) * 1.3 - 1.2, y: foot.y + 3.2))
+                claws.addLine(to: CGPoint(x: foot.x + 0.4 + CGFloat(k) * 1.3, y: foot.y))
+            }
+            c.fill(claws, with: .color(pal.horn))
+        }
 
         // Body with a lighter belly.
         let body = Path(ellipseIn: CGRect(x: -21, y: -8.5, width: 42, height: 17))
@@ -177,6 +196,27 @@ enum DragonPainter {
             startPoint: CGPoint(x: 0, y: -8.5), endPoint: CGPoint(x: 0, y: 9)
         ))
         ridges(c, color: pal.bodyDark)
+        // Belly plates, scales and a rim of light along the back.
+        var plates = Path()
+        for i in 0..<7 {
+            let x = -15 + CGFloat(i) * 4.6
+            plates.move(to: CGPoint(x: x, y: 3.5))
+            plates.addQuadCurve(to: CGPoint(x: x + 2.2, y: 8.2), control: CGPoint(x: x + 2.6, y: 5.6))
+        }
+        c.stroke(plates, with: .color(pal.bodyDark.opacity(0.55)), lineWidth: 0.55)
+        var scales = Path()
+        for r in 0..<3 {
+            for k in 0..<8 {
+                let x = -16 + CGFloat(k) * 4.4 + (r % 2 == 0 ? 0 : 2.2), y = -5.5 + CGFloat(r) * 3.2
+                scales.move(to: CGPoint(x: x - 1.3, y: y))
+                scales.addQuadCurve(to: CGPoint(x: x + 1.3, y: y), control: CGPoint(x: x, y: y + 1.6))
+            }
+        }
+        c.stroke(scales, with: .color(pal.bodyDark.opacity(0.35)), lineWidth: 0.45)
+        var rim = Path()
+        rim.move(to: CGPoint(x: -18, y: -4))
+        rim.addQuadCurve(to: CGPoint(x: 16, y: -4.5), control: CGPoint(x: 0, y: -11.5))
+        c.stroke(rim, with: .color(pal.wingEdge.opacity(0.5)), style: StrokeStyle(lineWidth: 0.8, lineCap: .round))
 
         // Neck and head.
         let neck = Ink.cubic(CGPoint(x: 14, y: -2), CGPoint(x: 21, y: -6), CGPoint(x: 26, y: -11), flyHeadBase, steps: 12)
@@ -223,7 +263,9 @@ enum DragonPainter {
             bones.move(to: wrist)
             bones.addLine(to: tip)
         }
+        c.stroke(bones, with: .color(edge.opacity(0.2)), style: StrokeStyle(lineWidth: 3.2, lineCap: .round))
         c.stroke(bones, with: .color(bone), lineWidth: 1.0)
+        for tip in tips { c.fill(Ink.circle(tip, 0.9), with: .color(bone)) }
 
         var lead = Path()
         lead.move(to: .zero)
@@ -231,6 +273,12 @@ enum DragonPainter {
         lead.addLine(to: tips[0])
         c.stroke(lead, with: .color(bone), lineWidth: 2.2)
         c.stroke(lead, with: .color(edge.opacity(0.75)), lineWidth: 0.8)
+        var claw = Path()
+        claw.move(to: CGPoint(x: wrist.x - 1.2, y: wrist.y))
+        claw.addQuadCurve(to: CGPoint(x: wrist.x + 3.6, y: wrist.y - 4.8), control: CGPoint(x: wrist.x + 1.6, y: wrist.y - 4.2))
+        claw.addLine(to: CGPoint(x: wrist.x + 1.4, y: wrist.y + 0.8))
+        claw.closeSubpath()
+        c.fill(claw, with: .color(bone))
     }
 
     /// Head facing right; `at` is where the neck joins.
@@ -262,6 +310,12 @@ enum DragonPainter {
         jaw.move(to: CGPoint(x: 18, y: 1))
         jaw.addQuadCurve(to: CGPoint(x: 7, y: 1.8), control: CGPoint(x: 12, y: 2.1))
         c.stroke(jaw, with: .color(pal.bodyDark), lineWidth: 0.6)
+        c.stroke(jaw, with: .color(.white.opacity(0.6)), style: StrokeStyle(lineWidth: 0.5, dash: [0.5, 1.1]))
+        var brow = Path()
+        brow.move(to: CGPoint(x: 4.5, y: -3.4))
+        brow.addQuadCurve(to: CGPoint(x: 11, y: -3.6), control: CGPoint(x: 8, y: -5.9))
+        c.stroke(brow, with: .color(pal.bodyDark), style: StrokeStyle(lineWidth: 0.9, lineCap: .round))
+        c.fill(Path { $0.move(to: CGPoint(x: -1, y: 2)); $0.addLine(to: CGPoint(x: -6.5, y: 5.8)); $0.addLine(to: CGPoint(x: 1.5, y: 4)); $0.closeSubpath() }, with: .color(pal.horn))
 
         let eye = CGPoint(x: 8, y: -1.8)
         if eyeClosed {
@@ -278,6 +332,7 @@ enum DragonPainter {
                 ))
             }
             c.fill(Ink.ellipse(eye, 1.4, 1.0), with: .color(pal.eye))
+            c.fill(Ink.ellipse(eye, 0.3, 0.9), with: .color(.black.opacity(0.85)))
         }
         c.fill(Ink.ellipse(nostrilLocal, 0.6, 0.4), with: .color(pal.bodyDark))
     }
@@ -325,6 +380,17 @@ enum DragonPainter {
             Gradient(colors: [pal.bodyDark, pal.body, pal.belly]),
             startPoint: CGPoint(x: 0, y: -16), endPoint: CGPoint(x: 0, y: 1)
         ))
+        // Spikes along the back.
+        var spikes = Path()
+        for k in 0..<7 {
+            let x = -13 + CGFloat(k) * 4.4
+            let y = -8 - 8.5 * sqrt(max(0, 1 - (x / 17) * (x / 17)))
+            spikes.move(to: CGPoint(x: x - 1.5, y: y + 0.8))
+            spikes.addLine(to: CGPoint(x: x + 0.2, y: y - 3.6))
+            spikes.addLine(to: CGPoint(x: x + 1.7, y: y + 0.8))
+            spikes.closeSubpath()
+        }
+        bodyCtx.fill(spikes, with: .color(pal.bodyDark))
         // Haunch and hind foot.
         bodyCtx.fill(Ink.ellipse(CGPoint(x: -9, y: -6), 7, 6), with: .linearGradient(
             Gradient(colors: [pal.body, pal.bodyDark]),
