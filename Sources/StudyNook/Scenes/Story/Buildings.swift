@@ -288,7 +288,21 @@ enum Buildings {
             tower(c, x: base.x + (d.0 - d.2 / 2) * u, base: base.y + (d.1 + 1) * u, w: d.2 * u, h: d.3 * u, stone: RGB(rock.r * 0.7, rock.g * 0.7, rock.b * 0.8),
                   roof: RGB(0.18, 0.17, 0.22), u: u * 0.45, lit: 0.8, seed: i + 70, t: t)
         }
-        c.stroke(Ink.ellipse(P(0, 4), 33 * u * (1 + 0.04 * CGFloat(sin(t * 1.4))), 2.4 * u), with: .color(.white.opacity(0.25)), lineWidth: 0.8 * u)
+        // The rock stands in the water: a soft reflection, a dark waterline and broken foam along the foot.
+        var reflection = c
+        reflection.concatenate(CGAffineTransform(a: 1, b: 0, c: 0, d: -0.55, tx: 0, ty: base.y + 4 * u + 0.55 * (base.y + 4 * u)))
+        reflection.opacity = 0.22
+        reflection.fill(crag, with: .linearGradient(Gradient(colors: [shade(rock, 0.8).color(), shade(rock, 0.3).color()]), startPoint: P(0, -33), endPoint: P(0, 4)))
+        c.fill(Ink.ellipse(P(0, 4.2), 31 * u, 1.3 * u), with: .color(.black.opacity(0.35)))
+        var foam = Path()
+        var fx: CGFloat = -30
+        while fx < 30 {
+            let w = (2 + 3 * CGFloat(M.rand(Int(fx + 40), 77))) * u
+            foam.move(to: P(fx, 4 + CGFloat(sin(t * 1.4 + Double(fx))) * 0.3))
+            foam.addLine(to: CGPoint(x: base.x + fx * u + w, y: base.y + 4 * u))
+            fx += 5 + 3 * CGFloat(M.rand(Int(fx + 40), 78))
+        }
+        c.stroke(foam, with: .color(.white.opacity(0.32)), style: StrokeStyle(lineWidth: 0.9 * u, lineCap: .round))
     }
 
     /// Winterfell: grey walls, a keep with snowy roofs, towers and glowing windows.

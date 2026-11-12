@@ -103,8 +103,13 @@ enum Landscape {
     }
 
     /// King's Landing: see `Buildings.kingsLanding`.
-    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70, shoreline: Bool = true) {
-        Buildings.kingsLanding(c, base: base, u: u, t: t, lit: lit, land: land, extent: extent, shoreline: shoreline)
+    static func kingsLanding(_ c: GraphicsContext, base: CGPoint, u: CGFloat, t: Double, lit: Double, land: RGB, extent: CGFloat = 70, shoreline: Bool = true, mirrored: Bool = false) {
+        var g = c
+        if mirrored {
+            // Flip around the city's own axis: the coast ends up on the right and the land runs off the left edge.
+            g.concatenate(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 2 * base.x, ty: 0))
+        }
+        Buildings.kingsLanding(g, base: base, u: u, t: t, lit: lit, land: land, extent: extent, shoreline: shoreline)
     }
 
     /// Dragonstone: see `Buildings.dragonstone`.

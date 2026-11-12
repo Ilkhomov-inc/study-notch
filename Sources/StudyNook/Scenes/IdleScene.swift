@@ -27,16 +27,16 @@ enum IdlePainter {
         Landscape.sea(c, size, horizon: hy, u: u, t: t,
                       top: ready ? RGB(0.45, 0.38, 0.55) : RGB(0.12, 0.16, 0.30),
                       bottom: RGB(0.03, 0.06, 0.14), glint: glint, glintX: glintX)
-        Landscape.kingsLanding(c, base: CGPoint(x: w * 0.06, y: hy + 1 * u), u: u * 0.5, t: t, lit: 0.6,
-                               land: RGB(0.10, 0.10, 0.16))
+        Landscape.kingsLanding(c, base: CGPoint(x: w * 0.13, y: hy + 3 * u), u: u * 0.75, t: t, lit: 0.6,
+                               land: RGB(0.16, 0.14, 0.22), extent: 150, mirrored: true)
 
-        let island = CGPoint(x: w * 0.6, y: hy + 2 * u)
-        let k: CGFloat = 1.45
+        let island = CGPoint(x: w * 0.66, y: hy + 3 * u)
+        let k: CGFloat = 1.6
         Landscape.dragonstone(c, base: island, u: u * k, t: t,
                               rock: ready ? RGB(0.40, 0.32, 0.40) : RGB(0.24, 0.25, 0.34))
 
         if ready {
-            let pos = CGPoint(x: island.x - 50 * u, y: h * 0.36 + CGFloat(sin(t * 2 * .pi * 0.6)) * 2 * u)
+            let pos = CGPoint(x: island.x - 85 * u, y: h * 0.36 + CGFloat(sin(t * 2 * .pi * 0.6)) * 2 * u)
             let pose = DragonPose(position: pos, angle: -0.05, scale: 0.40 * u, flip: -1)
             DragonPainter.drawFlying(c, pose: pose, flapPhase: t * 2 * .pi * 1.1, t: t, palette: .drogon)
         } else {
