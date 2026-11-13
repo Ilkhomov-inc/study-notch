@@ -147,6 +147,41 @@ struct PomodoroEngineTests {
         #expect(story.finishedStories == 1)
     }
 
+    @Test("Statistics count chapters and minutes per day and over the week")
+    func statistics() {
+        let (engine, clock) = makeEngine()
+        engine.startJourney()
+        clock.advance(25 * 60 + 10)
+        engine.tick()
+        engine.startJourney(minutes: 45)
+        clock.advance(45 * 60 + 10)
+        engine.tick()
+        #expect(engine.flightsToday == 2)
+        #expect(engine.minutesToday == 70)
+
+        clock.advance(24 * 60 * 60)
+        engine.tick()
+        engine.startJourney()
+        clock.advance(25 * 60 + 10)
+        engine.tick()
+        let week = engine.history(days: 7)
+        #expect(week.count == 7)
+        #expect(week.last?.chapters == 1)
+        #expect(week.last?.minutes == 25)
+        #expect(week.reduce(0) { $0 + $1.chapters } == 3)
+        #expect(week.reduce(0) { $0 + $1.minutes } == 95)
+    }
+
+    @Test("Only finished chapters can be watched again")
+    func watchedChapters() {
+        let (engine, clock) = makeEngine()
+        #expect(engine.watchedChapters.isEmpty)
+        engine.startJourney()
+        clock.advance(25 * 60 + 10)
+        engine.tick()
+        #expect(engine.watchedChapters == [.birth])
+    }
+
     @Test("Phase changes are reported in order")
     func phaseCallbacks() {
         let (engine, clock) = makeEngine()

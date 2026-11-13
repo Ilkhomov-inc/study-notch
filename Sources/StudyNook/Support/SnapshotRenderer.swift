@@ -4,7 +4,7 @@ import StudyNookCore
 
 /// Debug: renders the island to PNG files and quits. Needs no screen recording permission.
 ///   STUDYNOOK_SNAPSHOT=<dir> [STUDYNOOK_ONLY=<prefix>] build/StudyNook.app/Contents/MacOS/StudyNook
-/// Files are named `<chapter>-<journey|rest>-<progress>.png`, plus `idle`, `choice`, `compact-*`.
+/// Files are named `<chapter>-<journey|rest>-<progress>.png`, plus `idle`, `choice`, `compact-*`, `stats`, `replay`.
 @MainActor
 enum SnapshotRenderer {
     struct Item {
@@ -41,21 +41,53 @@ enum SnapshotRenderer {
             let defaults = UserDefaults(suiteName: "studynook.snapshot") ?? .standard
             let engine = PomodoroEngine(log: FlightLog(defaults: defaults), story: StoryProgress(defaults: defaults))
             engine.debugJump(to: item.phase, progress: item.progress, chapter: item.chapter)
-            let model = NotchViewModel()
-            if let metrics = NotchMetrics.detect() { model.metrics = metrics }
+            let model = makeModel()
             model.pinnedExpanded = item.expanded
-
-            let size = model.panelSize
-            let view = NotchRootView(engine: engine, model: model)
-                .frame(width: size.width, height: size.height)
-                .background(Color(white: 0.55))
-            let renderer = ImageRenderer(content: view)
-            renderer.scale = 2
-            guard let image = renderer.nsImage,
-                  let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else { continue }
-            try? png.write(to: folder.appendingPathComponent("\(item.name).png"))
+            render(engine, model, to: folder.appendingPathComponent("\(item.name).png"))
         }
+
+        // Statistics and a replay, with a made-up week of study.
+        if only == nil || "stats".hasPrefix(only ?? "") || "replay".hasPrefix(only ?? "") {
+            let suite = "studynook.snapshot.stats"
+            UserDefaults.standard.removePersistentDomain(forName: suite)
+            let d = UserDefaults(suiteName: suite) ?? .standard
+            let log = FlightLog(defaults: d)
+            for back in 0..<7 {
+                guard let day = Calendar.current.date(byAdding: .day, value: -back, to: Date()) else { continue }
+                let n = [3, 1, 2, 0, 4, 2, 1][back]
+                for _ in 0..<n { log.increment(on: day) }
+                log.addMinutes(n * 25 + (back == 0 ? 20 : 0), on: day)
+            }
+            let story = StoryProgress(defaults: d)
+            while story.current.rawValue < 6 { story.advance() }
+            let engine = PomodoroEngine(log: log, story: story)
+            let model = makeModel()
+            model.pinnedExpanded = true
+            model.showStats = true
+            render(engine, model, to: folder.appendingPathComponent("stats.png"))
+            model.showStats = false
+            model.replay = Replay(chapter: .astapor, started: Date().addingTimeInterval(-34))
+            render(engine, model, to: folder.appendingPathComponent("replay.png"))
+        }
+    }
+
+    private static func makeModel() -> NotchViewModel {
+        let model = NotchViewModel()
+        if let metrics = NotchMetrics.detect() { model.metrics = metrics }
+        return model
+    }
+
+    private static func render(_ engine: PomodoroEngine, _ model: NotchViewModel, to url: URL) {
+        let size = model.panelSize
+        let view = NotchRootView(engine: engine, model: model)
+            .frame(width: size.width, height: size.height)
+            .background(Color(white: 0.55))
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: url)
     }
 }

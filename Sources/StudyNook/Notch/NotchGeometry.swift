@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
+import StudyNookCore
 
 /// Where the camera notch is, in screen coordinates.
 struct NotchMetrics: Equatable {
@@ -73,13 +74,36 @@ final class NotchViewModel {
     var pinnedExpanded = false
     /// False while the screen sleeps: scenes stop drawing.
     var isAwake = true
+    /// Statistics panel shown instead of the scene.
+    var showStats = false
+    /// A finished chapter being watched again.
+    var replay: Replay?
+    @ObservationIgnored private var replayToken = 0
+
+    func startReplay(_ chapter: Chapter) {
+        replayToken += 1
+        let token = replayToken
+        showStats = false
+        replay = Replay(chapter: chapter, started: Date())
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Replay.total))
+            guard let self, self.replayToken == token else { return }
+            self.replay = nil
+        }
+    }
+
+    func stopReplay() {
+        replayToken += 1
+        replay = nil
+    }
+
     /// Minutes picked in the choice screen.
     var journeyMinutes = 25
     var restMinutes = 5
 
     @ObservationIgnored private var holdToken = 0
 
-    var isExpanded: Bool { pinnedExpanded || forcedByPhase || isHovering || isHeld }
+    var isExpanded: Bool { pinnedExpanded || forcedByPhase || isHovering || isHeld || replay != nil }
 
     var expandedSize: CGSize {
         CGSize(width: NotchLayout.expandedWidth, height: metrics.notchHeight + NotchLayout.expandedBody)

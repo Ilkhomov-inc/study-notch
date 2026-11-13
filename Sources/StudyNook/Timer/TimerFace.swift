@@ -104,20 +104,38 @@ struct ExpandedContent: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Color.clear.frame(width: model.metrics.notchWidth + 8)
-                EggCounter(flights: engine.flightsToday)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                // Tap the eggs for statistics and chapters to watch again.
+                Button { model.showStats.toggle() } label: {
+                    HStack(spacing: 5) {
+                        EggCounter(flights: engine.flightsToday)
+                        Image(systemName: model.showStats ? "xmark.circle.fill" : "chart.bar.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle())
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.horizontal, 26)
             .frame(height: model.metrics.notchHeight)
 
-            SceneCard(engine: engine, model: model)
+            Group {
+                if model.showStats && model.replay == nil {
+                    StatsPanel(engine: engine, model: model)
+                } else {
+                    SceneCard(engine: engine, model: model)
+                }
+            }
                 .frame(height: NotchLayout.sceneHeight)
                 .mask(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
 
             Group {
-                if phase == .choice {
+                if let replay = model.replay {
+                    ReplayBar(replay: replay, model: model)
+                } else if phase == .choice {
                     ChoiceView(engine: engine, model: model)
                 } else {
                     HStack(alignment: .center, spacing: 12) {
@@ -145,6 +163,7 @@ struct ExpandedContent: View {
             Spacer(minLength: 0)
         }
         .frame(width: model.expandedSize.width, height: model.expandedSize.height, alignment: .top)
+        .onDisappear { model.showStats = false }
     }
 }
 

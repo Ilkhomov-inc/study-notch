@@ -106,6 +106,25 @@ public final class PomodoroEngine {
     public var canRest: Bool { phase == .choice || phase == .idle }
     public var canEndRest: Bool { phase == .rest }
 
+    // MARK: - Statistics
+
+    /// Chapters finished and minutes studied per day, oldest first, ending today.
+    public func history(days: Int = 7) -> [DayStat] {
+        let today = now()
+        let cal = Calendar.current
+        return (0..<days).reversed().compactMap { back in
+            guard let day = cal.date(byAdding: .day, value: -back, to: today) else { return nil }
+            return DayStat(date: day, chapters: log.count(on: day), minutes: log.minutes(on: day))
+        }
+    }
+
+    public var minutesToday: Int { log.minutes(on: now()) }
+
+    /// Chapters that can be watched again: everything already finished at least once.
+    public var watchedChapters: [Chapter] {
+        story.finishedStories > 0 ? Chapter.allCases : Chapter.allCases.filter { $0.rawValue < story.current.rawValue }
+    }
+
     // MARK: - Actions
 
     /// Starts the next chapter. The first journey of the day ignores `minutes` and lasts 25.
@@ -196,6 +215,7 @@ public final class PomodoroEngine {
     private func advance(endedAt end: Date) {
         switch phase {
         case .journey:
+            log.addMinutes(plannedMinutes, on: end)
             let count = log.increment(on: end)
             if flightsToday != count { flightsToday = count }
             // `chapter` stays the one just finished: arrival and rest scenes belong to it.
@@ -250,6 +270,14 @@ public struct FlightLog {
         defaults.integer(forKey: key(for: date))
     }
 
+    public func minutes(on date: Date) -> Int {
+        defaults.integer(forKey: "minutes." + dayKey(date))
+    }
+
+    public func addMinutes(_ minutes: Int, on date: Date) {
+        defaults.set(self.minutes(on: date) + minutes, forKey: "minutes." + dayKey(date))
+    }
+
     @discardableResult
     public func increment(on date: Date) -> Int {
         let next = count(on: date) + 1
@@ -258,7 +286,24 @@ public struct FlightLog {
     }
 
     private func key(for date: Date) -> String {
+        "flights." + dayKey(date)
+    }
+
+    private func dayKey(_ date: Date) -> String {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return String(format: "flights.%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+}
+
+/// One day of study.
+public struct DayStat: Sendable, Equatable {
+    public let date: Date
+    public let chapters: Int
+    public let minutes: Int
+
+    public init(date: Date, chapters: Int, minutes: Int) {
+        self.date = date
+        self.chapters = chapters
+        self.minutes = minutes
     }
 }

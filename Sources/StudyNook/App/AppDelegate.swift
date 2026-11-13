@@ -131,10 +131,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .rest:
             menu.addItem(item("Закончить отдых", #selector(endRest)))
         }
-        let flights = NSMenuItem(title: "Путей сегодня: \(engine.flightsToday) · история пройдена раз: \(engine.story.finishedStories)", action: nil, keyEquivalent: "")
-        flights.isEnabled = false
+        // Statistics and chapters to watch again.
+        let week = engine.history(days: 7)
+        let today = week.last
         menu.addItem(.separator())
-        menu.addItem(flights)
+        for line in [
+            "Сегодня: \(today?.chapters ?? 0) гл. · \(today?.minutes ?? 0) мин",
+            "Неделя: \(week.reduce(0) { $0 + $1.chapters }) гл. · \(week.reduce(0) { $0 + $1.minutes }) мин",
+            "История пройдена раз: \(engine.story.finishedStories)",
+        ] {
+            let info = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            menu.addItem(info)
+        }
+        let replayItem = NSMenuItem(title: "Пересмотреть главу", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        let watched = engine.watchedChapters
+        if watched.isEmpty {
+            let none = NSMenuItem(title: "Сначала пройдите первую главу", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            sub.addItem(none)
+        }
+        for ch in watched {
+            let it = item("\(ch.number). \(ch.title)", #selector(replayChapter(_:)))
+            it.tag = ch.rawValue
+            sub.addItem(it)
+        }
+        replayItem.submenu = sub
+        menu.addItem(replayItem)
         menu.addItem(.separator())
         menu.addItem(item("Выйти из Study Nook", #selector(quit), key: "q"))
     }
@@ -150,5 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func endRest() { engine.endRestEarly() }
     @objc private func togglePause() { engine.togglePause() }
     @objc private func cancelJourney() { engine.cancel() }
+    @objc private func replayChapter(_ sender: NSMenuItem) {
+        if let ch = Chapter(rawValue: sender.tag) { model.startReplay(ch) }
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 }
