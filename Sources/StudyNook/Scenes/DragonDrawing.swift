@@ -107,8 +107,8 @@ struct DragonPose {
 }
 
 enum DragonPainter {
-    static let flyHeadBase = CGPoint(x: 32, y: -12)
-    static let flyHeadAngle = 0.1
+    static let flyHeadBase = CGPoint(x: 31, y: -22)
+    static let flyHeadAngle = 0.2
     static let mouthLocal = CGPoint(x: 18.5, y: 0.9)
     static let nostrilLocal = CGPoint(x: 16, y: -1.1)
 
@@ -118,165 +118,221 @@ enum DragonPainter {
         return pose.world(mouthLocal.applying(head))
     }
 
+    // MARK: - Shared geometry (facing right, origin in the middle of the body, y down)
+
+    /// Thick chest in front, slimmer hips behind.
+    static func bodyPath() -> Path {
+        var b = Path()
+        b.move(to: CGPoint(x: -22, y: -1))
+        b.addQuadCurve(to: CGPoint(x: -2, y: -10), control: CGPoint(x: -14, y: -9))
+        b.addQuadCurve(to: CGPoint(x: 17, y: -7), control: CGPoint(x: 9, y: -12.5))
+        b.addQuadCurve(to: CGPoint(x: 19, y: 4), control: CGPoint(x: 24, y: -2))
+        b.addQuadCurve(to: CGPoint(x: 0, y: 9.5), control: CGPoint(x: 12, y: 10.5))
+        b.addQuadCurve(to: CGPoint(x: -22, y: 3), control: CGPoint(x: -13, y: 8.5))
+        b.closeSubpath()
+        return b
+    }
+
+    /// The neck rises in an S toward the head, so the head is carried high like a horse's, not in line like a lizard's.
+    static func neckPoints() -> [CGPoint] {
+        Ink.cubic(CGPoint(x: 13, y: -4), CGPoint(x: 23, y: -7), CGPoint(x: 23, y: -19), flyHeadBase, steps: 14)
+    }
+
+    static func tailPoints(t: Double) -> [CGPoint] {
+        let sway = sin(t * 3.1)
+        return Ink.cubic(CGPoint(x: -18, y: 0), CGPoint(x: -34, y: 5),
+                         CGPoint(x: -46, y: -5 + 3 * sway), CGPoint(x: -60, y: -1 + 4 * sin(t * 3.1 - 0.9)), steps: 18)
+    }
+
+    /// Wing membrane in wing space: shoulder at the origin, the open wing reaching up (negative y) and back.
+    static let wingElbow = CGPoint(x: 12, y: -14)
+    static let wingWrist = CGPoint(x: 4, y: -31)
+    static let wingTips = [CGPoint(x: -10, y: -50), CGPoint(x: -27, y: -45), CGPoint(x: -39, y: -32), CGPoint(x: -45, y: -16)]
+
+    static func wingPath() -> Path {
+        var m = Path()
+        m.move(to: .zero)
+        m.addQuadCurve(to: wingElbow, control: CGPoint(x: 8, y: -4))
+        m.addQuadCurve(to: wingWrist, control: CGPoint(x: 13, y: -25))
+        m.addLine(to: wingTips[0])
+        m.addQuadCurve(to: wingTips[1], control: CGPoint(x: -16, y: -39))
+        m.addQuadCurve(to: wingTips[2], control: CGPoint(x: -28, y: -33))
+        m.addQuadCurve(to: wingTips[3], control: CGPoint(x: -34, y: -21))
+        m.addQuadCurve(to: CGPoint(x: -22, y: 1), control: CGPoint(x: -30, y: -6))
+        m.closeSubpath()
+        return m
+    }
+
+    /// How open the wing is in the stroke: 1 fully up, about -0.7 fully down.
+    /// It moves quickly through the flat middle position, so the wing almost never reads as a thin line.
+    static func wingLift(_ phase: Double) -> CGFloat {
+        let f = sin(phase)
+        let s = (f < 0 ? -1.0 : 1.0) * pow(abs(f), 0.55)
+        return CGFloat(s >= 0 ? s : s * 0.7)
+    }
+
+    static func wingTransform(shoulder: CGPoint, lift s: CGFloat, size k: CGFloat) -> CGAffineTransform {
+        let sy = s >= 0 ? max(0.16, s) : min(-0.16, s)
+        return CGAffineTransform(translationX: shoulder.x, y: shoulder.y)
+            .rotated(by: -0.18 * Double(s))
+            .scaledBy(x: k, y: sy * k)
+    }
+
     // MARK: - Tiny silhouette
 
     /// One flat color, a single fill, no gradients: cheap enough for the collapsed island.
     static func drawSilhouette(_ c: GraphicsContext, pose: DragonPose, flapPhase: Double, color: Color) {
         var g = c
         g.concatenate(pose.transform)
-        let f = sin(flapPhase)
-        let s = CGFloat(-0.45 + (f + 1) / 2 * 1.45)
-        var p = Path()
-        p.addEllipse(in: CGRect(x: -21, y: -8.5, width: 42, height: 17))
-        p.addPath(Ink.tapered(Ink.quad(CGPoint(x: -14, y: 1), CGPoint(x: -36, y: 4), CGPoint(x: -62, y: -1)), 8, 1.5))
-        p.addPath(Ink.tapered(Ink.quad(CGPoint(x: 14, y: -2), CGPoint(x: 26, y: -8), CGPoint(x: 34, y: -12)), 11, 6.5))
-        p.addEllipse(in: CGRect(x: 30, y: -17, width: 18, height: 9))
-        for (dx, k) in [(3.0, 1.0), (-6.0, 0.8)] {
-            var w = Path()
-            w.move(to: CGPoint(x: dx, y: -6))
-            w.addLine(to: CGPoint(x: dx + 14, y: -6 - 24 * s * k))
-            w.addLine(to: CGPoint(x: dx - 14, y: -6 - 34 * s * k))
-            w.addLine(to: CGPoint(x: dx - 20, y: -4))
-            w.closeSubpath()
-            p.addPath(w)
-        }
+        let s = wingLift(flapPhase)
+        var p = bodyPath()
+        p.addPath(Ink.tapered(tailPoints(t: 0), 9, 1.5))
+        p.addPath(Ink.tapered(neckPoints(), 11, 6.5))
+        p.addEllipse(in: CGRect(x: flyHeadBase.x - 2, y: flyHeadBase.y - 4.5, width: 19, height: 8))
+        p.addPath(wingPath().applying(wingTransform(shoulder: CGPoint(x: 3, y: -7), lift: s, size: 1)))
+        p.addPath(wingPath().applying(wingTransform(shoulder: CGPoint(x: -3, y: -8), lift: wingLift(flapPhase - 0.45), size: 0.9)))
         g.fill(p, with: .color(color))
     }
 
     // MARK: - Flying
 
-    /// Dragon in flight. Local size: about 115 × 60 units, origin at the middle of the body.
+    /// Dragon in flight, about 110 units from snout to tail, wingspan larger than the body.
     static func drawFlying(_ base: GraphicsContext, pose: DragonPose, flapPhase: Double, t: Double, palette pal: DragonPalette) {
         var c = base
         c.concatenate(pose.transform)
 
-        // Far wing, behind the body, slightly late.
-        drawWing(c, shoulder: CGPoint(x: -2, y: -7), flap: sin(flapPhase - 0.5), size: 0.86,
+        // Far wing, behind everything, a little late in the stroke.
+        drawWing(c, shoulder: CGPoint(x: -3, y: -8), lift: wingLift(flapPhase - 0.45), size: 0.9,
                  fill: pal.wingFar, edge: pal.wingFar, bone: pal.bodyDark)
 
-        // Tail sways.
-        let sway = sin(t * 3.1)
-        let tail = Ink.cubic(
-            CGPoint(x: -14, y: 1), CGPoint(x: -32, y: 5),
-            CGPoint(x: -46, y: -4 + 3 * sway), CGPoint(x: -62, y: -1 + 4 * sin(t * 3.1 - 0.9)),
-            steps: 18
-        )
-        c.fill(Ink.tapered(tail, 8, 1.2), with: .color(pal.body))
+        // Tail with spikes and a spade.
+        let tail = tailPoints(t: t)
+        c.fill(Ink.tapered(tail, 9.5, 1.2), with: .linearGradient(
+            Gradient(colors: [pal.bodyDark, pal.body]), startPoint: CGPoint(x: -30, y: -6), endPoint: CGPoint(x: -30, y: 6)))
         var tailSpikes = Path()
         for k in stride(from: 2, to: tail.count - 4, by: 3) {
             let a = tail[k], b = tail[k + 1]
-            let w = 3.4 * (1 - CGFloat(k) / CGFloat(tail.count))
-            tailSpikes.move(to: CGPoint(x: a.x - 1, y: a.y - 2))
-            tailSpikes.addLine(to: CGPoint(x: (a.x + b.x) / 2 - 0.4, y: a.y - 2 - w - 1.2))
-            tailSpikes.addLine(to: CGPoint(x: b.x + 0.6, y: b.y - 2))
+            let w = 3.6 * (1 - CGFloat(k) / CGFloat(tail.count))
+            tailSpikes.move(to: CGPoint(x: a.x - 1, y: a.y - 2.2))
+            tailSpikes.addLine(to: CGPoint(x: (a.x + b.x) / 2 - 0.6, y: a.y - 2.4 - w - 1.2))
+            tailSpikes.addLine(to: CGPoint(x: b.x + 0.6, y: b.y - 2.2))
             tailSpikes.closeSubpath()
         }
         c.fill(tailSpikes, with: .color(pal.bodyDark))
         spade(c, tail, color: pal.bodyDark)
 
-        // Tucked legs.
-        c.fill(Ink.tapered(Ink.quad(CGPoint(x: -10, y: 4), CGPoint(x: -15, y: 10), CGPoint(x: -21, y: 9)), 5, 2),
-               with: .color(pal.bodyDark))
-        c.fill(Ink.tapered(Ink.quad(CGPoint(x: 9, y: 4), CGPoint(x: 12, y: 10), CGPoint(x: 16, y: 9)), 4, 1.6),
-               with: .color(pal.bodyDark))
-        for foot in [CGPoint(x: -21, y: 9), CGPoint(x: 16, y: 9)] {
-            var claws = Path()
-            for k in 0..<3 {
-                claws.move(to: CGPoint(x: foot.x - 1.2 + CGFloat(k) * 1.3, y: foot.y))
-                claws.addLine(to: CGPoint(x: foot.x - 0.6 + CGFloat(k) * 1.3 - 1.2, y: foot.y + 3.2))
-                claws.addLine(to: CGPoint(x: foot.x + 0.4 + CGFloat(k) * 1.3, y: foot.y))
-            }
-            c.fill(claws, with: .color(pal.horn))
-        }
+        // Hind leg: a strong thigh, the shin tucked back, claws.
+        c.fill(Ink.ellipse(CGPoint(x: -12, y: 3), 7, 5.5), with: .linearGradient(
+            Gradient(colors: [pal.body, pal.bodyDark]), startPoint: CGPoint(x: -12, y: -2), endPoint: CGPoint(x: -12, y: 8)))
+        c.fill(Ink.tapered(Ink.quad(CGPoint(x: -14, y: 6), CGPoint(x: -18, y: 10), CGPoint(x: -23, y: 9.5)), 4.4, 2), with: .color(pal.bodyDark))
+        claws(c, at: CGPoint(x: -23, y: 9.5), color: pal.horn)
 
-        // Body with a lighter belly.
-        let body = Path(ellipseIn: CGRect(x: -21, y: -8.5, width: 42, height: 17))
+        // Body.
+        let body = bodyPath()
         c.fill(body, with: .linearGradient(
             Gradient(colors: [pal.bodyDark, pal.body, pal.belly]),
-            startPoint: CGPoint(x: 0, y: -8.5), endPoint: CGPoint(x: 0, y: 9)
-        ))
-        ridges(c, color: pal.bodyDark)
-        // Belly plates, scales and a rim of light along the back.
+            startPoint: CGPoint(x: 0, y: -11), endPoint: CGPoint(x: 0, y: 10)))
+        // Spikes along the back.
+        var spikes = Path()
+        let back1 = QuadCurve(p0: CGPoint(x: -22, y: -1), c: CGPoint(x: -14, y: -9), p1: CGPoint(x: -2, y: -10))
+        let back2 = QuadCurve(p0: CGPoint(x: -2, y: -10), c: CGPoint(x: 9, y: -12.5), p1: CGPoint(x: 17, y: -7))
+        for q in [back1.point(0.35), back1.point(0.65), back1.point(0.95), back2.point(0.3), back2.point(0.6)] {
+            spikes.move(to: CGPoint(x: q.x - 1.8, y: q.y + 0.8))
+            spikes.addLine(to: CGPoint(x: q.x - 0.8, y: q.y - 3.4))
+            spikes.addLine(to: CGPoint(x: q.x + 1.8, y: q.y + 0.8))
+            spikes.closeSubpath()
+        }
+        c.fill(spikes, with: .color(pal.bodyDark))
+        // Belly plates, scales, a rim of light along the back.
         var plates = Path()
         for i in 0..<7 {
-            let x = -15 + CGFloat(i) * 4.6
+            let x = -14 + CGFloat(i) * 4.4
             plates.move(to: CGPoint(x: x, y: 3.5))
-            plates.addQuadCurve(to: CGPoint(x: x + 2.2, y: 8.2), control: CGPoint(x: x + 2.6, y: 5.6))
+            plates.addQuadCurve(to: CGPoint(x: x + 2, y: 8.2), control: CGPoint(x: x + 2.6, y: 5.6))
         }
-        c.stroke(plates, with: .color(pal.bodyDark.opacity(0.55)), lineWidth: 0.55)
+        c.stroke(plates, with: .color(pal.bodyDark.opacity(0.5)), lineWidth: 0.55)
         var scales = Path()
         for r in 0..<3 {
             for k in 0..<8 {
-                let x = -16 + CGFloat(k) * 4.4 + (r % 2 == 0 ? 0 : 2.2), y = -5.5 + CGFloat(r) * 3.2
+                let x = -16 + CGFloat(k) * 4.2 + (r % 2 == 0 ? 0 : 2.1), y = -6 + CGFloat(r) * 3
                 scales.move(to: CGPoint(x: x - 1.3, y: y))
                 scales.addQuadCurve(to: CGPoint(x: x + 1.3, y: y), control: CGPoint(x: x, y: y + 1.6))
             }
         }
-        c.stroke(scales, with: .color(pal.bodyDark.opacity(0.35)), lineWidth: 0.45)
+        var bodyClip = c
+        bodyClip.clip(to: body)
+        bodyClip.stroke(scales, with: .color(pal.bodyDark.opacity(0.35)), lineWidth: 0.45)
         var rim = Path()
-        rim.move(to: CGPoint(x: -18, y: -4))
-        rim.addQuadCurve(to: CGPoint(x: 16, y: -4.5), control: CGPoint(x: 0, y: -11.5))
+        rim.move(to: CGPoint(x: -20, y: -2))
+        rim.addQuadCurve(to: CGPoint(x: 16, y: -7.5), control: CGPoint(x: 0, y: -13.5))
         c.stroke(rim, with: .color(pal.wingEdge.opacity(0.5)), style: StrokeStyle(lineWidth: 0.8, lineCap: .round))
 
-        // Neck and head.
-        let neck = Ink.cubic(CGPoint(x: 14, y: -2), CGPoint(x: 21, y: -6), CGPoint(x: 26, y: -11), flyHeadBase, steps: 12)
-        c.fill(Ink.tapered(neck, 11, 6.5), with: .linearGradient(
-            Gradient(colors: [pal.bodyDark, pal.body]),
-            startPoint: CGPoint(x: 20, y: -15), endPoint: CGPoint(x: 20, y: 0)
-        ))
+        // Front leg tucked under the chest.
+        c.fill(Ink.tapered(Ink.quad(CGPoint(x: 11, y: 5), CGPoint(x: 14, y: 10), CGPoint(x: 17, y: 10)), 4.2, 1.8), with: .color(pal.bodyDark))
+        claws(c, at: CGPoint(x: 17, y: 10), color: pal.horn)
+
+        // Neck with a crest of small spikes, then the head.
+        let neck = neckPoints()
+        c.fill(Ink.tapered(neck, 11.5, 6.5), with: .linearGradient(
+            Gradient(colors: [pal.bodyDark, pal.body, pal.belly]),
+            startPoint: CGPoint(x: 26, y: -20), endPoint: CGPoint(x: 14, y: 2)))
+        var crest = Path()
+        for k in stride(from: 2, to: neck.count - 2, by: 3) {
+            let a = neck[k]
+            crest.move(to: CGPoint(x: a.x - 3.2, y: a.y - 2.2))
+            crest.addLine(to: CGPoint(x: a.x - 4.8, y: a.y - 5))
+            crest.addLine(to: CGPoint(x: a.x - 1.2, y: a.y - 3.6))
+            crest.closeSubpath()
+        }
+        c.fill(crest, with: .color(pal.bodyDark))
         drawHead(c, at: flyHeadBase, angle: flyHeadAngle, palette: pal, eyeClosed: false)
 
         // Near wing on top.
-        drawWing(c, shoulder: CGPoint(x: 3, y: -6), flap: sin(flapPhase), size: 1,
+        drawWing(c, shoulder: CGPoint(x: 3, y: -7), lift: wingLift(flapPhase), size: 1,
                  fill: pal.wing, edge: pal.wingEdge, bone: pal.bodyDark)
     }
 
-    /// Bat-like wing. flap = 1: fully up, -1: down below the body.
-    static func drawWing(_ base: GraphicsContext, shoulder: CGPoint, flap f: Double, size k: CGFloat,
+    private static func claws(_ c: GraphicsContext, at foot: CGPoint, color: Color) {
+        var p = Path()
+        for k in 0..<3 {
+            let x = foot.x - 1.2 + CGFloat(k) * 1.3
+            p.move(to: CGPoint(x: x, y: foot.y))
+            p.addQuadCurve(to: CGPoint(x: x - 1, y: foot.y + 3), control: CGPoint(x: x + 0.6, y: foot.y + 2))
+            p.addLine(to: CGPoint(x: x + 0.8, y: foot.y))
+        }
+        c.fill(p, with: .color(color))
+    }
+
+    /// A bat-like wing. `lift` 1 = fully up, negative = below the body.
+    static func drawWing(_ base: GraphicsContext, shoulder: CGPoint, lift s: CGFloat, size k: CGFloat,
                          fill: Color, edge: Color, bone: Color) {
         var c = base
-        c.translateBy(x: shoulder.x, y: shoulder.y)
-        c.rotate(by: .degrees(-8 * f))
-        let s = CGFloat(-0.55 + (f + 1) / 2 * 1.55)
-        c.scaleBy(x: k, y: s * k)
-
-        let wrist = CGPoint(x: 10, y: -22)
-        let tips = [CGPoint(x: -2, y: -40), CGPoint(x: -14, y: -35), CGPoint(x: -24, y: -25), CGPoint(x: -28, y: -13)]
-        let root = CGPoint(x: -14, y: -1)
-
-        var m = Path()
-        m.move(to: .zero)
-        m.addQuadCurve(to: wrist, control: CGPoint(x: 9, y: -9))
-        m.addLine(to: tips[0])
-        m.addQuadCurve(to: tips[1], control: CGPoint(x: -5, y: -30))
-        m.addQuadCurve(to: tips[2], control: CGPoint(x: -14, y: -25))
-        m.addQuadCurve(to: tips[3], control: CGPoint(x: -20, y: -17))
-        m.addQuadCurve(to: root, control: CGPoint(x: -18, y: -7))
-        m.closeSubpath()
-        c.fill(m, with: .linearGradient(
-            Gradient(colors: [fill, fill.opacity(0.8)]),
-            startPoint: .zero, endPoint: CGPoint(x: -12, y: -38)
-        ))
-
-        var bones = Path()
-        for tip in tips {
-            bones.move(to: wrist)
-            bones.addLine(to: tip)
+        c.concatenate(wingTransform(shoulder: shoulder, lift: s, size: k))
+        let m = wingPath()
+        // The underside shows on the downstroke: a little darker.
+        let top = s >= 0 ? fill : fill.opacity(0.82)
+        c.fill(m, with: .linearGradient(Gradient(colors: [top, fill.opacity(0.72)]),
+                                        startPoint: wingWrist, endPoint: CGPoint(x: -36, y: -24)))
+        // Fingers with a soft glow, the arm bone, joints.
+        var fingers = Path()
+        for tip in wingTips {
+            fingers.move(to: wingWrist)
+            fingers.addQuadCurve(to: tip, control: CGPoint(x: (wingWrist.x + tip.x) / 2 + 2, y: (wingWrist.y + tip.y) / 2 + 3))
         }
-        c.stroke(bones, with: .color(edge.opacity(0.2)), style: StrokeStyle(lineWidth: 3.2, lineCap: .round))
-        c.stroke(bones, with: .color(bone), lineWidth: 1.0)
-        for tip in tips { c.fill(Ink.circle(tip, 0.9), with: .color(bone)) }
-
-        var lead = Path()
-        lead.move(to: .zero)
-        lead.addQuadCurve(to: wrist, control: CGPoint(x: 9, y: -9))
-        lead.addLine(to: tips[0])
-        c.stroke(lead, with: .color(bone), lineWidth: 2.2)
-        c.stroke(lead, with: .color(edge.opacity(0.75)), lineWidth: 0.8)
+        c.stroke(fingers, with: .color(edge.opacity(0.18)), style: StrokeStyle(lineWidth: 3.2, lineCap: .round))
+        c.stroke(fingers, with: .color(bone), style: StrokeStyle(lineWidth: 1.0, lineCap: .round))
+        var arm = Path()
+        arm.move(to: .zero)
+        arm.addQuadCurve(to: wingElbow, control: CGPoint(x: 8, y: -4))
+        arm.addQuadCurve(to: wingWrist, control: CGPoint(x: 13, y: -25))
+        c.stroke(arm, with: .color(bone), style: StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
+        c.stroke(arm, with: .color(edge.opacity(0.7)), style: StrokeStyle(lineWidth: 0.8, lineCap: .round))
+        for joint in [wingElbow, wingWrist] { c.fill(Ink.circle(joint, 1.4), with: .color(bone)) }
+        // Claw on the wrist.
         var claw = Path()
-        claw.move(to: CGPoint(x: wrist.x - 1.2, y: wrist.y))
-        claw.addQuadCurve(to: CGPoint(x: wrist.x + 3.6, y: wrist.y - 4.8), control: CGPoint(x: wrist.x + 1.6, y: wrist.y - 4.2))
-        claw.addLine(to: CGPoint(x: wrist.x + 1.4, y: wrist.y + 0.8))
+        claw.move(to: CGPoint(x: wingWrist.x - 1.2, y: wingWrist.y))
+        claw.addQuadCurve(to: CGPoint(x: wingWrist.x + 4, y: wingWrist.y - 4.6), control: CGPoint(x: wingWrist.x + 1.8, y: wingWrist.y - 4.4))
+        claw.addLine(to: CGPoint(x: wingWrist.x + 1.4, y: wingWrist.y + 0.8))
         claw.closeSubpath()
         c.fill(claw, with: .color(bone))
     }
@@ -335,19 +391,6 @@ enum DragonPainter {
             c.fill(Ink.ellipse(eye, 0.3, 0.9), with: .color(.black.opacity(0.85)))
         }
         c.fill(Ink.ellipse(nostrilLocal, 0.6, 0.4), with: .color(pal.bodyDark))
-    }
-
-    /// Spikes along the back.
-    private static func ridges(_ c: GraphicsContext, color: Color) {
-        var p = Path()
-        for x in stride(from: -15.0, through: 9.0, by: 6.0) {
-            let y0 = -8.5 * sqrt(max(0, 1 - (x / 21) * (x / 21)))
-            p.move(to: CGPoint(x: x - 1.8, y: y0 + 0.8))
-            p.addLine(to: CGPoint(x: x - 0.6, y: y0 - 3))
-            p.addLine(to: CGPoint(x: x + 1.8, y: y0 + 0.8))
-            p.closeSubpath()
-        }
-        c.fill(p, with: .color(color))
     }
 
     /// Spade at the end of the tail.

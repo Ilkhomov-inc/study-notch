@@ -66,7 +66,7 @@ enum Stage {
             c.fill(Ink.circle(p, r), with: .color(RGB(0.98, 0.95, 0.85).color()))
         }
         if let s = b.sun, s.y < b.horizon + 0.02 {
-            godRays(c, env, from: CGPoint(x: env.w * s.x, y: env.h * s.y), color: s.color, alpha: 0.07)
+            godRays(c, env, from: CGPoint(x: env.w * s.x, y: env.h * s.y), color: s.color, alpha: 0.035, count: 5)
         }
         switch b.ground {
         case let .sea(top, bottom):
@@ -204,7 +204,7 @@ enum Stage {
         for i in 0..<count {
             let a = Double.pi / 2 + (Double(i) / Double(count - 1) - 0.5) * spread + (M.rand(i, 150) - 0.5) * 0.12
             let len = env.h * 1.6
-            let w = 0.05 + 0.05 * M.rand(i, 151)
+            let w = 0.08 + 0.06 * M.rand(i, 151)
             var p = Path()
             p.move(to: from)
             p.addLine(to: CGPoint(x: from.x + CGFloat(cos(a - w)) * len, y: from.y + CGFloat(sin(a - w)) * len))

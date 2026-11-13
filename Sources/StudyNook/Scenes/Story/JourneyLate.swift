@@ -27,6 +27,18 @@ enum JourneyLate {
             w.closeSubpath()
             c.fill(w, with: .linearGradient(Gradient(colors: [RGB(0.55, 0.32, 0.22).color(), RGB(0.3, 0.16, 0.12).color()]),
                                             startPoint: CGPoint(x: x0, y: 0), endPoint: CGPoint(x: x1, y: 0)))
+            // Layers of rock, a lit inner edge and a few ledges.
+            var rock = c
+            rock.clip(to: w)
+            var strata = Path()
+            for k in 0..<13 {
+                let y = env.h * CGFloat(k) / 12
+                strata.move(to: CGPoint(x: min(x0, x1) - 10, y: y))
+                strata.addQuadCurve(to: CGPoint(x: max(x0, x1) + 10, y: y + 3 * u), control: CGPoint(x: (x0 + x1) / 2, y: y - 4 * u))
+            }
+            rock.stroke(strata, with: .color(RGB(0.2, 0.09, 0.06).color(0.38)), lineWidth: 1.1 * u)
+            rock.stroke(strata.applying(CGAffineTransform(translationX: 0, y: 1.6 * u)), with: .color(RGB(0.95, 0.62, 0.42).color(0.2)), lineWidth: 0.7 * u)
+            rock.stroke(w, with: .color(RGB(1, 0.75, 0.5).color(0.35)), lineWidth: 3 * u)
         }
         Stage.hills(c, env, color: RGB(0.45, 0.38, 0.25), y: hy + 8 * u, amp: 3 * u, freq: 2, phase: 1.2)
     }
@@ -42,18 +54,16 @@ enum JourneyLate {
         let pos = CGPoint(x: M.lerp(env.w * 1.05, env.w * 0.5, CGFloat(arrive)), y: env.h * 0.36 + CGFloat(sin(t * 1.7)) * 2.5 * u)
         DragonKit.fly(c, at: pos, scale: size * u, climb: 0.04 * (1 - arrive), facing: -1, t: t, palette: .drogon, hz: 1.5)
         let b = DragonKit.back(at: pos, scale: size * u)
-        Figure.draw(c, feet: b, h: 22 * u, style: .dany(.white), facing: -1, t: t, arms: p > 0.3 ? 0.55 + 0.35 * CGFloat(sin(t * 1.6)).magnitude : 0.2)
+        Figure.draw(c, feet: b, h: DragonKit.riderHeight(size * u), style: .dany(.white), facing: -1, t: t, arms: p > 0.3 ? 0.55 + 0.35 * CGFloat(sin(t * 1.6)).magnitude : 0.2)
         if p > 0.45 {
             // The speech: rays of light and rising spears.
             let k = M.smoothstep(0.45, 0.75, p)
             var g = c
             g.blendMode = .plusLighter
-            for i in 0..<9 {
-                let a = Double(i) / 8 * .pi + .pi
-                let d = CGPoint(x: b.x + CGFloat(cos(a)) * 80 * u, y: b.y - 18 * u + CGFloat(sin(a)) * 60 * u)
-                g.stroke(Path { $0.move(to: CGPoint(x: b.x, y: b.y - 14 * u)); $0.addLine(to: d) },
-                         with: .color(RGB(1, 0.85, 0.5).color(0.1 * k)), lineWidth: 5 * u)
-            }
+            let glowAt = CGPoint(x: b.x, y: b.y - 8 * u)
+            g.fill(Ink.circle(glowAt, 46 * u), with: .radialGradient(
+                Gradient(colors: [RGB(1, 0.85, 0.55).color(0.32 * k), RGB(1, 0.85, 0.55).color(0)]),
+                center: glowAt, startRadius: 0, endRadius: 46 * u))
             var spears = Path()
             for i in 0..<34 {
                 let x = env.w * CGFloat(M.rand(i, 61)), y = hy + 12 * u + CGFloat(M.rand(i, 62)) * 26 * u
@@ -81,7 +91,7 @@ enum JourneyLate {
     }
 
     static func sailingForeground(_ c: GraphicsContext, _ env: SceneEnv) {
-        let p = env.p, u = env.u, t = env.t, hy = env.hy
+        let u = env.u, t = env.t, hy = env.hy
         Landscape.clouds(c, env.size, u: u, t: t, tint: RGB(1, 0.95, 0.9), opacity: 0.8)
         // Glints and waves move across the water.
         for i in 0..<10 {
@@ -153,7 +163,7 @@ enum JourneyLate {
         hit = max(0, hit)
         DragonKit.fly(c, at: pos, scale: DragonKit.size(.goldenRoad) * u, climb: -0.12, facing: -1, t: t, palette: .drogon, hz: 1.6)
         let b = DragonKit.back(at: pos, scale: DragonKit.size(.goldenRoad) * u, climb: -0.12)
-        Figure.draw(c, feet: b, h: 20 * u, style: .dany(.white), facing: -1, t: t, arms: 0.3)
+        Figure.draw(c, feet: b, h: DragonKit.riderHeight(DragonKit.size(.goldenRoad) * u), style: .dany(.white), facing: -1, t: t, arms: 0.3)
         if p < 0.78 && p > 0.05 {
             let m = DragonKit.mouth(at: pos, scale: DragonKit.size(.goldenRoad) * u, climb: -0.12)
             Fire.breath(c, from: m, angle: .pi * 0.62, length: 42 * u, t: t, u: u, intensity: 0.95)
@@ -280,7 +290,7 @@ enum JourneyLate {
         var vc = c
         vc.opacity = 1 - Double(ash)
         DragonKit.fly(vc, at: vp, scale: size * 1.05, climb: 0.02, facing: 1, t: t, palette: .undead, hz: 1.3)
-        Figure.draw(vc, feet: DragonKit.back(at: vp, scale: size * 1.05, climb: 0.02, facing: 1), h: 20 * u, style: .nightKing, facing: 1, t: t)
+        Figure.draw(vc, feet: DragonKit.back(at: vp, scale: size * 1.05, climb: 0.02, facing: 1), h: DragonKit.riderHeight(size * 1.05), style: .nightKing, facing: 1, t: t)
         let m = DragonKit.mouth(at: vp, scale: size * 1.05, climb: 0.02, facing: 1)
         Fire.blueBreath(c, from: m, angle: .pi * 0.28, length: 48 * u, t: t, u: u, intensity: 1 - Double(ash))
         if ash > 0.02 {
@@ -333,7 +343,7 @@ enum JourneyLate {
         // Drogon and Daenerys fly on, alone.
         let dpos = CGPoint(x: env.w * 0.28 + CGFloat(p) * 20 * u, y: env.h * 0.2 + CGFloat(sin(t * 1.8)) * 3 * u)
         DragonKit.fly(c, at: dpos, scale: size * 1.15, climb: 0.03, facing: -1, t: t, palette: .drogon, hz: 1.4)
-        Figure.draw(c, feet: DragonKit.back(at: dpos, scale: size * 1.15, climb: 0.03), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.25)
+        Figure.draw(c, feet: DragonKit.back(at: dpos, scale: size * 1.15, climb: 0.03), h: DragonKit.riderHeight(size * 1.15), style: .dany(.black), facing: -1, t: t, arms: 0.25)
     }
 
     // MARK: - Chapter 11: King's Landing
@@ -366,7 +376,7 @@ enum JourneyLate {
         let pass = M.fract(p * 5)
         let pos = CGPoint(x: M.lerp(env.w * 1.0, env.w * 0.38, CGFloat(M.easeInOut(pass))), y: env.h * 0.24 + CGFloat(sin(pass * .pi)) * 14 * u)
         DragonKit.fly(c, at: pos, scale: size, climb: -0.14, facing: -1, t: t, palette: .drogon, hz: 1.5)
-        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: -0.14), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.3)
+        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: -0.14), h: DragonKit.riderHeight(size), style: .dany(.black), facing: -1, t: t, arms: 0.3)
         let m = DragonKit.mouth(at: pos, scale: size, climb: -0.14)
         Fire.breath(c, from: m, angle: .pi * 0.55, length: 56 * u, t: t, u: u, intensity: 1)
         Stage.wash(c, env, RGB(1, 0.35, 0.08), 0.1 + 0.12 * burn)
@@ -377,58 +387,162 @@ enum JourneyLate {
 
     static func epilogueBackground(_ c: GraphicsContext, _ env: SceneEnv) {
         let u = env.u, hy = env.hy
+        // Smoky sky, seen through the broken wall.
         c.fill(Path(CGRect(origin: .zero, size: env.size)), with: .linearGradient(
-            Gradient(colors: [RGB(0.08, 0.06, 0.08).color(), RGB(0.38, 0.17, 0.1).color()]), startPoint: .zero, endPoint: CGPoint(x: 0, y: env.h)))
-        // The ruined throne room: broken columns, a hole in the roof with the sky.
-        for i in 0..<5 {
-            let x = env.w * (0.04 + 0.23 * CGFloat(i))
-            c.fill(Path(CGRect(x: x, y: 0, width: 10 * u, height: env.h)), with: .color(RGB(0.14, 0.1, 0.1).color()))
-            c.fill(Path(CGRect(x: x - 3 * u, y: 0, width: 16 * u, height: 6 * u)), with: .color(RGB(0.18, 0.13, 0.12).color()))
+            Gradient(colors: [RGB(0.22, 0.16, 0.18).color(), RGB(0.62, 0.32, 0.18).color()]), startPoint: .zero, endPoint: CGPoint(x: 0, y: env.h * 0.65)))
+        // Back wall with a jagged hole where the great window was.
+        let center = CGPoint(x: env.w * 0.5, y: env.h * 0.28), r = 34 * u
+        var wall = Path()
+        wall.addRect(CGRect(x: -2, y: -2, width: env.w + 4, height: env.h + 4))
+        var hole = Path()
+        for k in 0..<22 {
+            let a = Double(k) / 22 * 2 * .pi
+            let rr = r * CGFloat(0.78 + 0.38 * M.rand(k, 200))
+            let p = CGPoint(x: center.x + CGFloat(cos(a)) * rr * 1.25, y: center.y + CGFloat(sin(a)) * rr)
+            if k == 0 { hole.move(to: p) } else { hole.addLine(to: p) }
         }
-        c.fill(Path(ellipseIn: CGRect(x: env.w * 0.4, y: -22 * u, width: env.w * 0.28, height: 40 * u)), with: .linearGradient(
-            Gradient(colors: [RGB(0.5, 0.3, 0.3).color(), RGB(0.9, 0.5, 0.3).color()]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: 20 * u)))
-        c.fill(Path(CGRect(x: 0, y: hy + 14 * u, width: env.w, height: env.h)), with: .color(RGB(0.1, 0.07, 0.08).color()))
+        hole.closeSubpath()
+        wall.addPath(hole)
+        c.fill(wall, with: .linearGradient(Gradient(colors: [RGB(0.24, 0.18, 0.17).color(), RGB(0.12, 0.08, 0.08).color()]),
+                                           startPoint: .zero, endPoint: CGPoint(x: 0, y: env.h)), style: FillStyle(eoFill: true))
+        // Stone courses on the wall.
+        var courses = Path()
+        var y: CGFloat = 5 * u
+        while y < hy + 14 * u { courses.move(to: CGPoint(x: 0, y: y)); courses.addLine(to: CGPoint(x: env.w, y: y)); y += 6 * u }
+        var walled = c
+        walled.clip(to: wall, style: FillStyle(eoFill: true))
+        walled.stroke(courses, with: .color(.black.opacity(0.18)), lineWidth: 0.6 * u)
+        // What is left of the window tracery.
+        var tracery = Path()
+        for k in 0..<7 {
+            let a = Double(k) / 7 * 2 * .pi + 0.3
+            let len = r * CGFloat(0.35 + 0.5 * M.rand(k, 201))
+            tracery.move(to: CGPoint(x: center.x + CGFloat(cos(a)) * r * 1.2, y: center.y + CGFloat(sin(a)) * r * 0.95))
+            tracery.addLine(to: CGPoint(x: center.x + CGFloat(cos(a)) * (r * 1.2 - len), y: center.y + CGFloat(sin(a)) * (r * 0.95 - len * 0.8)))
+        }
+        c.stroke(tracery, with: .color(RGB(0.16, 0.11, 0.11).color()), style: StrokeStyle(lineWidth: 2 * u, lineCap: .round))
+        // A shaft of smoky light from the hole onto the floor.
+        var g = c
+        g.blendMode = .plusLighter
+        g.fill(Path { p in
+            p.move(to: CGPoint(x: center.x - r, y: center.y)); p.addLine(to: CGPoint(x: center.x + r, y: center.y))
+            p.addLine(to: CGPoint(x: center.x + r * 1.8, y: hy + 20 * u)); p.addLine(to: CGPoint(x: center.x - r * 1.4, y: hy + 20 * u)); p.closeSubpath()
+        }, with: .linearGradient(Gradient(colors: [RGB(1, 0.7, 0.45).color(0.16), RGB(1, 0.7, 0.45).color(0)]), startPoint: center, endPoint: CGPoint(x: center.x, y: hy + 20 * u)))
+        // Columns, two of them broken.
+        for i in 0..<6 {
+            let x = env.w * (0.02 + 0.19 * CGFloat(i)), cw = 11 * u
+            let broken = i == 1 || i == 4
+            let top = broken ? (20 + 18 * CGFloat(M.rand(i, 202))) * u : 0
+            var col = Path()
+            col.move(to: CGPoint(x: x, y: hy + 16 * u))
+            col.addLine(to: CGPoint(x: x, y: top + (broken ? 4 * u : 0)))
+            if broken {
+                col.addLine(to: CGPoint(x: x + cw * 0.3, y: top)); col.addLine(to: CGPoint(x: x + cw * 0.55, y: top + 5 * u)); col.addLine(to: CGPoint(x: x + cw * 0.8, y: top + 1 * u))
+            }
+            col.addLine(to: CGPoint(x: x + cw, y: top + (broken ? 3 * u : 0)))
+            col.addLine(to: CGPoint(x: x + cw, y: hy + 16 * u))
+            col.closeSubpath()
+            c.fill(col, with: .linearGradient(Gradient(colors: [RGB(0.36, 0.28, 0.26).color(), RGB(0.2, 0.15, 0.14).color(), RGB(0.1, 0.07, 0.07).color()]),
+                                              startPoint: CGPoint(x: x, y: 0), endPoint: CGPoint(x: x + cw, y: 0)))
+            var flutes = Path()
+            for f in 1..<4 { flutes.move(to: CGPoint(x: x + cw * CGFloat(f) / 4, y: top + 6 * u)); flutes.addLine(to: CGPoint(x: x + cw * CGFloat(f) / 4, y: hy + 14 * u)) }
+            c.stroke(flutes, with: .color(.black.opacity(0.22)), lineWidth: 0.5 * u)
+            c.fill(Path(CGRect(x: x - 2 * u, y: hy + 13 * u, width: cw + 4 * u, height: 3 * u)), with: .color(RGB(0.3, 0.23, 0.21).color()))
+        }
+        // Floor with fallen stones.
+        c.fill(Path(CGRect(x: 0, y: hy + 16 * u, width: env.w, height: env.h)), with: .linearGradient(
+            Gradient(colors: [RGB(0.22, 0.15, 0.13).color(), RGB(0.08, 0.05, 0.05).color()]), startPoint: CGPoint(x: 0, y: hy + 16 * u), endPoint: CGPoint(x: 0, y: env.h)))
+        Stage.rocks(c, env, y0: hy + 20 * u, y1: env.h - 2 * u, color: RGB(0.3, 0.23, 0.21), count: 9, seed: 12)
     }
+
+    /// The Iron Throne: steps, a seat, and a high back of a thousand blades. `melt` 0...1 turns it to glowing slag.
+    static func ironThrone(_ c: GraphicsContext, at base: CGPoint, u: CGFloat, melt: Double, t: Double) {
+        let iron = RGB(0.34, 0.35, 0.40), hot = RGB(1, 0.55, 0.12)
+        // Steps.
+        for k in 0..<3 {
+            let w = (64 - CGFloat(k) * 14) * u, y = base.y - CGFloat(k + 1) * 4 * u
+            c.fill(Path(CGRect(x: base.x - w / 2, y: y, width: w, height: 4 * u)), with: .linearGradient(
+                Gradient(colors: [RGB(0.34, 0.26, 0.24).color(), RGB(0.16, 0.11, 0.1).color()]), startPoint: CGPoint(x: 0, y: y), endPoint: CGPoint(x: 0, y: y + 4 * u)))
+            c.fill(Path(CGRect(x: base.x - w / 2, y: y, width: w, height: 0.8 * u)), with: .color(RGB(0.6, 0.45, 0.38).color(0.4)))
+        }
+        let seatTop = base.y - 12 * u - 12 * u
+        // The back: blades fanning up behind the seat.
+        for i in 0..<34 {
+            let f = Double(i) / 33
+            let a = (f - 0.5) * 2.1 + (M.rand(i, 210) - 0.5) * 0.12
+            let shrink = 1 - 0.85 * melt * (0.5 + 0.5 * M.rand(i, 211))
+            let len = (26 + 24 * CGFloat(M.rand(i, 212)) * CGFloat(1 - abs(f - 0.5))) * u * CGFloat(shrink)
+            let root = CGPoint(x: base.x + CGFloat(f - 0.5) * 16 * u, y: seatTop + 4 * u)
+            let tip = CGPoint(x: root.x + CGFloat(sin(a)) * len, y: root.y - CGFloat(cos(a)) * len)
+            let col = RGB.lerp(RGB.lerp(iron, RGB(0.55, 0.57, 0.62), M.rand(i, 213)), hot, melt * (0.5 + 0.5 * M.rand(i, 214)))
+            c.fill(Ink.tapered([root, tip], 2 * u, 0.3 * u), with: .color(col.color()))
+            // Cross-guard near the root.
+            let gx = root.x + CGFloat(sin(a)) * 4 * u, gy = root.y - CGFloat(cos(a)) * 4 * u
+            c.stroke(Path { $0.move(to: CGPoint(x: gx - CGFloat(cos(a)) * 2 * u, y: gy - CGFloat(sin(a)) * 2 * u)); $0.addLine(to: CGPoint(x: gx + CGFloat(cos(a)) * 2 * u, y: gy + CGFloat(sin(a)) * 2 * u)) },
+                     with: .color(shadeColor(col, 0.7)), lineWidth: 0.8 * u)
+        }
+        // Seat and arms.
+        let seat = CGRect(x: base.x - 10 * u, y: seatTop, width: 20 * u, height: 12 * u)
+        c.fill(Path(roundedRect: seat, cornerRadius: 1.5 * u), with: .linearGradient(
+            Gradient(colors: [RGB.lerp(iron, hot, melt).color(), RGB.lerp(RGB(0.16, 0.16, 0.2), RGB(0.8, 0.3, 0.05), melt).color()]),
+            startPoint: CGPoint(x: seat.minX, y: 0), endPoint: CGPoint(x: seat.maxX, y: 0)))
+        for side in [CGFloat(-1), 1] {
+            for k in 0..<3 {
+                let root = CGPoint(x: base.x + side * 10 * u, y: seatTop + (3 + CGFloat(k) * 2.5) * u)
+                let tip = CGPoint(x: root.x + side * (7 + 2 * CGFloat(k)) * u * CGFloat(1 - 0.7 * melt), y: root.y - 1.5 * u)
+                c.fill(Ink.tapered([root, tip], 1.6 * u, 0.3 * u), with: .color(RGB.lerp(iron, hot, melt).color()))
+            }
+        }
+        if melt > 0.02 {
+            var g = c
+            g.blendMode = .plusLighter
+            let heart = CGPoint(x: base.x, y: seatTop)
+            g.fill(Ink.circle(heart, 44 * u), with: .radialGradient(
+                Gradient(colors: [hot.color(0.45 * melt), hot.color(0)]), center: heart, startRadius: 0, endRadius: 44 * u))
+            // Molten iron spreading over the steps.
+            c.fill(Ink.ellipse(CGPoint(x: base.x, y: base.y - 1 * u), CGFloat(10 + 26 * melt) * u, CGFloat(1.5 + 2 * melt) * u),
+                   with: .color(RGB(1, 0.5 + 0.2 * sin(t * 3), 0.1).color(0.85 * melt)))
+            for i in 0..<6 {
+                let age = M.fract(t * 0.5 + M.rand(i, 215))
+                c.fill(Ink.ellipse(CGPoint(x: base.x + CGFloat(i - 3) * 6 * u, y: seatTop + 12 * u + CGFloat(age) * 12 * u), 0.9 * u, 1.8 * u),
+                       with: .color(hot.color(melt * (1 - age))))
+            }
+        }
+    }
+
+    private static func shadeColor(_ c: RGB, _ k: Double) -> Color { RGB(c.r * k, c.g * k, c.b * k).color() }
 
     static func epilogueForeground(_ c: GraphicsContext, _ env: SceneEnv) {
         let p = env.p, u = env.u, t = env.t, hy = env.hy
-        let gy = hy + 20 * u
+        let gy = hy + 22 * u
         let cx = env.w * 0.5
         let melt = env.calm ? 0 : M.smoothstep(0.35, 0.78, p)
-        // The Iron Throne: a heap of blades, glowing as it melts.
-        var blades = c
-        let glow = Double(melt)
-        for i in 0..<26 {
-            let a = (Double(i) / 25 - 0.5) * 2.2
-            let len = (34 + 22 * M.rand(i, 3)) * u * (1 - 0.8 * CGFloat(melt) * CGFloat(0.5 + 0.5 * M.rand(i, 4)))
-            let base = CGPoint(x: cx + CGFloat(a) * 18 * u, y: gy)
-            let tip = CGPoint(x: base.x + CGFloat(sin(a * 1.4)) * 16 * u, y: base.y - len * CGFloat(cos(a * 0.55)))
-            let col = RGB.lerp(RGB(0.25, 0.26, 0.3), RGB(1, 0.55, 0.12), glow * (0.5 + 0.5 * M.rand(i, 5)))
-            blades.stroke(Path { $0.move(to: base); $0.addLine(to: tip) }, with: .color(col.color()), style: StrokeStyle(lineWidth: 2.3 * u, lineCap: .round))
-        }
-        c.fill(Path(roundedRect: CGRect(x: cx - 18 * u, y: gy - 8 * u, width: 36 * u, height: 10 * u), cornerRadius: 2 * u), with: .color(RGB.lerp(RGB(0.2, 0.2, 0.24), RGB(1, 0.4, 0.1), glow).color()))
-        if melt > 0.05 {
-            var g = c
-            g.blendMode = .plusLighter
-            g.fill(Ink.circle(CGPoint(x: cx, y: gy - 14 * u), 38 * u), with: .radialGradient(
-                Gradient(colors: [RGB(1, 0.5, 0.1).color(0.4 * glow), RGB(1, 0.5, 0.1).color(0)]), center: CGPoint(x: cx, y: gy - 14 * u), startRadius: 0, endRadius: 38 * u))
-            for i in 0..<5 {
-                let age = M.fract(t * 0.4 + M.rand(i, 6))
-                c.fill(Ink.ellipse(CGPoint(x: cx + CGFloat(i - 2) * 9 * u, y: gy + CGFloat(age) * 10 * u), 1.2 * u, 2.4 * u), with: .color(RGB(1, 0.55, 0.12).color(glow * (1 - age))))
-            }
-        }
+        ironThrone(c, at: CGPoint(x: cx, y: gy), u: u, melt: melt, t: t)
         // Jon stands to the side with his head down.
-        Figure.draw(c, feet: CGPoint(x: env.w * 0.24, y: gy + 4 * u), h: 36 * u, style: .jon, facing: 1, t: t)
-        // Drogon enters, breathes on the throne, and leaves with Daenerys.
-        let enter = M.smoothstep(0, 0.3, p), leave = env.calm ? 0 : M.smoothstep(0.78, 1, p)
+        Figure.draw(c, feet: CGPoint(x: env.w * 0.2, y: gy + 2 * u), h: 38 * u, style: .jon, facing: 1, t: t)
+        // Drogon enters, burns the throne and leaves with Daenerys.
+        let enter = M.smoothstep(0, 0.3, p), leave = env.calm ? 0 : M.smoothstep(0.8, 1, p)
+        if !env.calm && leave < 0.02 {
+            var body = c
+            body.translateBy(x: cx - 34 * u, y: gy - 1 * u)
+            body.rotate(by: .degrees(-90))
+            Figure.draw(body, feet: .zero, h: 26 * u, style: .dany(.black), facing: 1, t: 0)
+        }
         let size = DragonKit.size(.epilogue) * u * 1.4
-        let dpos = CGPoint(x: M.lerp(env.w * 1.1, env.w * 0.7, CGFloat(enter)) + CGFloat(leave) * env.w * 0.5, y: env.h * 0.34 - CGFloat(leave) * 26 * u + CGFloat(sin(t * 1.6)) * 3 * u)
-        DragonKit.fly(c, at: dpos, scale: size, climb: 0.1 * Double(leave), facing: leave > 0.02 ? 1 : -1, t: t, palette: .drogon, hz: 1.3)
+        let facing: CGFloat = leave > 0.02 ? 1 : -1
+        let dpos = CGPoint(x: M.lerp(env.w * 1.12, env.w * 0.74, CGFloat(enter)) + CGFloat(leave) * env.w * 0.5,
+                           y: env.h * 0.36 - CGFloat(leave) * 30 * u + CGFloat(sin(t * 1.6)) * 3 * u)
+        DragonKit.fly(c, at: dpos, scale: size, climb: 0.12 * Double(leave), facing: facing, t: t, palette: .drogon, hz: 1.3)
+        if leave > 0.02 {
+            DragonKit.carry(c, at: dpos, scale: size, climb: 0.12 * Double(leave), facing: facing, t: t)
+        }
         if !env.calm && p > 0.3 && p < 0.78 {
             let m = DragonKit.mouth(at: dpos, scale: size, climb: 0, facing: -1)
-            Fire.breath(c, from: m, angle: atan2(Double(gy - 14 * u - m.y), Double(cx - m.x)), length: hypot(cx - m.x, gy - m.y), t: t, u: u, intensity: M.smoothstep(0.3, 0.38, p))
+            let target = CGPoint(x: cx, y: gy - 30 * u)
+            Fire.breath(c, from: m, angle: atan2(Double(target.y - m.y), Double(target.x - m.x)), length: hypot(target.x - m.x, target.y - m.y),
+                        t: t, u: u, intensity: M.smoothstep(0.3, 0.38, p))
         }
-        Fire.smoke(c, x0: cx - 20 * u, x1: cx + 20 * u, y: gy - 20 * u, rise: 70 * u, t: t, u: u, opacity: 0.4 * glow)
+        Fire.smoke(c, x0: cx - 20 * u, x1: cx + 20 * u, y: gy - 30 * u, rise: 70 * u, t: t, u: u, opacity: 0.4 * melt)
         Stage.ash(c, env)
         Stage.vignette(c, env, strength: 0.5)
     }

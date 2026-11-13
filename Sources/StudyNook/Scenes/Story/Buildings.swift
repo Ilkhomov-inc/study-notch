@@ -334,7 +334,7 @@ enum Buildings {
         let u = env.u, hy = env.hy
         let wall = RGB(0.95, 0.9, 0.82), tile = RGB(0.82, 0.42, 0.26)
         for i in 0..<3 {
-            let x = env.w * (0.04 + 0.4 * CGFloat(i)), ww = 130 * u, hh = 38 * u
+            let x = env.w * (0.02 + 0.41 * CGFloat(i)), ww = (112 + 30 * CGFloat(M.rand(i, 60))) * u, hh = (32 + 10 * CGFloat(M.rand(i, 61))) * u
             c.fill(Path(CGRect(x: x, y: hy - hh, width: ww, height: hh + 3 * u)), with: .linearGradient(Gradient(colors: [wall.color(), shade(wall, 0.8).color()]), startPoint: CGPoint(x: x, y: 0), endPoint: CGPoint(x: x + ww, y: 0)))
             // Roof with tiles.
             var roof = Path()
@@ -344,7 +344,7 @@ enum Buildings {
             for k in 1..<3 { rows.move(to: CGPoint(x: x + (14 - CGFloat(k) * 2) * u, y: hy - hh - 10 * u + CGFloat(k) * 3.2 * u)); rows.addLine(to: CGPoint(x: x + ww - (14 - CGFloat(k) * 2) * u, y: hy - hh - 10 * u + CGFloat(k) * 3.2 * u)) }
             c.stroke(rows, with: .color(.black.opacity(0.18)), lineWidth: 0.5 * u)
             // Arcade with columns.
-            for k in 0..<5 {
+            for k in 0..<max(1, Int((ww - 8 * u) / (24 * u))) {
                 let ax = x + (8 + CGFloat(k) * 24) * u
                 var arch = Path()
                 arch.move(to: CGPoint(x: ax, y: hy + 3 * u)); arch.addLine(to: CGPoint(x: ax, y: hy - 19 * u))
@@ -392,38 +392,114 @@ enum Buildings {
     }
     private static func k0(_ k: Int) -> CGFloat { 1 }
 
-    /// Astapor: stepped brick pyramids with stairs, doorways and banners.
+    /// Astapor: a city of red brick. Stepped pyramids of different sizes at different distances,
+    /// flat-roofed houses between them, and a low city wall in front.
     static func astapor(_ c: GraphicsContext, _ env: SceneEnv, t: Double) {
         let u = env.u, hy = env.hy
-        let brick = RGB(0.72, 0.30, 0.20)
-        for i in 0..<4 {
-            let w0 = (62 + 22 * CGFloat(M.rand(i, 3))) * u
-            let x = env.w * (0.03 + 0.27 * CGFloat(i))
-            let steps = 5, sh = 8.5 * u
-            for s in 0..<steps {
-                let ww = w0 * (1 - CGFloat(s) * 0.17)
-                let rx = x + (w0 - ww) / 2, ry = hy + 4 * u - CGFloat(s + 1) * sh
-                c.fill(Path(CGRect(x: rx, y: ry, width: ww, height: sh)), with: .linearGradient(Gradient(colors: [shade(brick, 1.25 - 0.05 * Double(s)).color(), shade(brick, 0.7).color()]), startPoint: CGPoint(x: rx, y: 0), endPoint: CGPoint(x: rx + ww, y: 0)))
-                c.fill(Path(CGRect(x: rx, y: ry, width: ww, height: 1.2 * u)), with: .color(RGB(0.95, 0.65, 0.45).color(0.55)))
-                // Brick pattern.
-                var b = Path()
-                var bx = rx
-                while bx < rx + ww { b.move(to: CGPoint(x: bx, y: ry + 1.2 * u)); b.addLine(to: CGPoint(x: bx, y: ry + sh)); bx += 3.4 * u }
-                c.stroke(b, with: .color(.black.opacity(0.14)), lineWidth: 0.35 * u)
+        let haze = RGB(0.98, 0.78, 0.6)
+        // Far houses: a strip of flat roofs fading into the haze.
+        for i in 0..<38 {
+            let x = env.w * CGFloat(i) / 38 + CGFloat(M.rand(i, 90) - 0.5) * 8 * u
+            let h = (4 + 6 * CGFloat(M.rand(i, 91))) * u, w = (8 + 6 * CGFloat(M.rand(i, 92))) * u
+            let col = RGB.lerp(RGB(0.70, 0.40, 0.28), haze, 0.5)
+            c.fill(Path(CGRect(x: x, y: hy - h + 3 * u, width: w, height: h)), with: .color(col.color()))
+            c.fill(Path(CGRect(x: x + w * 0.4, y: hy - h * 0.55 + 3 * u, width: 1.4 * u, height: 2 * u)), with: .color(RGB(0.3, 0.15, 0.1).color(0.5)))
+        }
+        // (x, size, depth: 0 far ... 1 near), drawn far to near.
+        let pyramids: [(CGFloat, CGFloat, CGFloat)] = [(0.30, 0.7, 0.0), (0.66, 0.62, 0.05), (0.08, 0.95, 0.45), (0.88, 1.05, 0.55), (0.50, 1.25, 1.0)]
+        for (n, pyr) in pyramids.enumerated() {
+            let (fx, size, depth) = pyr
+            let brick = RGB.lerp(RGB(0.74, 0.30, 0.20), haze, 0.5 * Double(1 - depth))
+            let steps = depth > 0.7 ? 6 : 5
+            let w0 = 70 * u * size, sh = 8 * u * size
+            let x = env.w * fx - w0 / 2
+            let baseY = hy + (3 + 4 * depth) * u
+            for st in 0..<steps {
+                let ww = w0 * (1 - CGFloat(st) * 0.15)
+                let rx = x + (w0 - ww) / 2, ry = baseY - CGFloat(st + 1) * sh
+                c.fill(Path(CGRect(x: rx, y: ry, width: ww, height: sh)), with: .linearGradient(
+                    Gradient(colors: [shade(brick, 1.22 - 0.04 * Double(st)).color(), shade(brick, 0.68).color()]),
+                    startPoint: CGPoint(x: rx, y: 0), endPoint: CGPoint(x: rx + ww, y: 0)))
+                c.fill(Path(CGRect(x: rx, y: ry, width: ww, height: 1.1 * u * size)), with: .color(RGB(0.98, 0.7, 0.5).color(0.5)))
+                if depth > 0.4 {
+                    var b = Path()
+                    var bx = rx + CGFloat(st % 2) * 1.7 * u
+                    while bx < rx + ww { b.move(to: CGPoint(x: bx, y: ry + 1.1 * u)); b.addLine(to: CGPoint(x: bx, y: ry + sh)); bx += 3.4 * u * size }
+                    c.stroke(b, with: .color(.black.opacity(0.13)), lineWidth: 0.35 * u)
+                }
             }
-            // Stairs and a doorway.
-            let cx = x + w0 / 2
-            c.fill(Path { p in p.move(to: CGPoint(x: cx - 3 * u, y: hy + 4 * u)); p.addLine(to: CGPoint(x: cx - 1.2 * u, y: hy + 4 * u - CGFloat(steps) * sh)); p.addLine(to: CGPoint(x: cx + 1.2 * u, y: hy + 4 * u - CGFloat(steps) * sh)); p.addLine(to: CGPoint(x: cx + 3 * u, y: hy + 4 * u)); p.closeSubpath() },
-                   with: .color(RGB(0.95, 0.75, 0.55).color(0.8)))
+            let cx = x + w0 / 2, top = baseY - CGFloat(steps) * sh
+            // Stairs up the front.
+            c.fill(Path { p in
+                p.move(to: CGPoint(x: cx - 3.4 * u * size, y: baseY)); p.addLine(to: CGPoint(x: cx - 1.3 * u * size, y: top))
+                p.addLine(to: CGPoint(x: cx + 1.3 * u * size, y: top)); p.addLine(to: CGPoint(x: cx + 3.4 * u * size, y: baseY)); p.closeSubpath()
+            }, with: .color(RGB.lerp(RGB(0.96, 0.76, 0.56), haze, 0.4 * Double(1 - depth)).color(0.85)))
+            // A temple on top of the nearer pyramids.
+            if depth > 0.4 {
+                c.fill(Path(CGRect(x: cx - 6 * u * size, y: top - 7 * u * size, width: 12 * u * size, height: 7 * u * size)), with: .color(shade(brick, 0.9).color()))
+                c.fill(Path { p in
+                    p.move(to: CGPoint(x: cx - 7.5 * u * size, y: top - 7 * u * size)); p.addLine(to: CGPoint(x: cx, y: top - 11 * u * size))
+                    p.addLine(to: CGPoint(x: cx + 7.5 * u * size, y: top - 7 * u * size)); p.closeSubpath()
+                }, with: .color(RGB(0.9, 0.72, 0.3).color()))
+                let pole = top - 11 * u * size
+                c.stroke(Path { $0.move(to: CGPoint(x: cx, y: pole)); $0.addLine(to: CGPoint(x: cx, y: pole - 8 * u)) }, with: .color(.black.opacity(0.6)), lineWidth: 0.6 * u)
+                let wave = CGFloat(sin(t * 2.5 + Double(n))) * 0.8 * u
+                c.fill(Path { p in p.move(to: CGPoint(x: cx, y: pole - 8 * u)); p.addQuadCurve(to: CGPoint(x: cx + 7 * u, y: pole - 6.5 * u + wave), control: CGPoint(x: cx + 3.5 * u, y: pole - 9.5 * u)); p.addLine(to: CGPoint(x: cx, y: pole - 4 * u)); p.closeSubpath() },
+                       with: .color(RGB(0.92, 0.76, 0.2).color()))
+            }
+            // Doorway at the foot.
             var door = Path()
-            door.move(to: CGPoint(x: cx - 3 * u, y: hy + 4 * u)); door.addLine(to: CGPoint(x: cx - 3 * u, y: hy - 3 * u)); door.addQuadCurve(to: CGPoint(x: cx + 3 * u, y: hy - 3 * u), control: CGPoint(x: cx, y: hy - 9 * u)); door.addLine(to: CGPoint(x: cx + 3 * u, y: hy + 4 * u)); door.closeSubpath()
-            c.fill(door, with: .color(RGB(0.1, 0.05, 0.05).color()))
-            // Banner on the top.
-            let top = hy + 4 * u - CGFloat(steps) * sh
-            c.stroke(Path { $0.move(to: CGPoint(x: cx, y: top)); $0.addLine(to: CGPoint(x: cx, y: top - 9 * u)) }, with: .color(.black.opacity(0.6)), lineWidth: 0.6 * u)
-            let wave = CGFloat(sin(t * 2.5 + Double(i))) * 0.8 * u
-            c.fill(Path { p in p.move(to: CGPoint(x: cx, y: top - 9 * u)); p.addQuadCurve(to: CGPoint(x: cx + 7 * u, y: top - 7.5 * u + wave), control: CGPoint(x: cx + 3.5 * u, y: top - 10.5 * u)); p.addLine(to: CGPoint(x: cx, y: top - 5 * u)); p.closeSubpath() },
-                   with: .color(RGB(0.92, 0.76, 0.2).color()))
+            let dw = 3 * u * size
+            door.move(to: CGPoint(x: cx - dw, y: baseY)); door.addLine(to: CGPoint(x: cx - dw, y: baseY - 5 * u * size))
+            door.addQuadCurve(to: CGPoint(x: cx + dw, y: baseY - 5 * u * size), control: CGPoint(x: cx, y: baseY - 10 * u * size)); door.addLine(to: CGPoint(x: cx + dw, y: baseY)); door.closeSubpath()
+            c.fill(door, with: .color(RGB(0.12, 0.05, 0.05).color()))
+        }
+        // The low city wall in front, with a gate.
+        wall(c, x0: -4, x1: env.w + 4, base: hy + 13 * u, h: 6 * u, stone: RGB(0.66, 0.36, 0.25), u: u * 0.6, gate: env.w * 0.5, lit: 0.3)
+    }
+
+    /// A Dothraki hall: walls of logs, a steep hide roof with crossed gable beams, a glowing door and torches.
+    static func dothrakiHall(_ c: GraphicsContext, cx: CGFloat, base: CGFloat, k: CGFloat, u: CGFloat, glow: Double, t: Double) {
+        let w = 74 * u * k, wallH = 20 * u * k, roofH = 30 * u * k
+        let wood = RGB(0.38, 0.23, 0.13)
+        c.fill(Path(CGRect(x: cx - w / 2, y: base - wallH, width: w, height: wallH)), with: .linearGradient(
+            Gradient(colors: [shade(wood, 1.2).color(), shade(wood, 0.55).color()]), startPoint: CGPoint(x: cx - w / 2, y: 0), endPoint: CGPoint(x: cx + w / 2, y: 0)))
+        var logs = Path()
+        var x = cx - w / 2 + 3.4 * u * k
+        while x < cx + w / 2 { logs.move(to: CGPoint(x: x, y: base - wallH)); logs.addLine(to: CGPoint(x: x, y: base)); x += 3.4 * u * k }
+        c.stroke(logs, with: .color(.black.opacity(0.3)), lineWidth: 0.5 * u * k)
+        // Roof of hides with stitched seams.
+        var roof = Path()
+        roof.move(to: CGPoint(x: cx - w / 2 - 5 * u * k, y: base - wallH + 1 * u))
+        roof.addLine(to: CGPoint(x: cx, y: base - wallH - roofH))
+        roof.addLine(to: CGPoint(x: cx + w / 2 + 5 * u * k, y: base - wallH + 1 * u))
+        roof.closeSubpath()
+        c.fill(roof, with: .linearGradient(Gradient(colors: [RGB(0.55, 0.42, 0.28).color(), RGB(0.28, 0.18, 0.11).color()]),
+                                           startPoint: CGPoint(x: cx, y: base - wallH - roofH), endPoint: CGPoint(x: cx, y: base - wallH)))
+        var seams = Path()
+        for i in 1..<7 {
+            let f = CGFloat(i) / 7
+            seams.move(to: CGPoint(x: cx, y: base - wallH - roofH))
+            seams.addLine(to: CGPoint(x: cx - w / 2 - 5 * u * k + (w + 10 * u * k) * f, y: base - wallH + 1 * u))
+        }
+        c.stroke(seams, with: .color(.black.opacity(0.22)), style: StrokeStyle(lineWidth: 0.45 * u * k, dash: [1.4 * u * k, 1 * u * k]))
+        // Crossed beams at the gable, carved like horse heads.
+        var beams = Path()
+        let apex = CGPoint(x: cx, y: base - wallH - roofH)
+        beams.move(to: CGPoint(x: apex.x - 3 * u * k, y: apex.y + 4 * u * k)); beams.addQuadCurve(to: CGPoint(x: apex.x + 6 * u * k, y: apex.y - 6 * u * k), control: CGPoint(x: apex.x + 1 * u * k, y: apex.y - 3 * u * k))
+        beams.move(to: CGPoint(x: apex.x + 3 * u * k, y: apex.y + 4 * u * k)); beams.addQuadCurve(to: CGPoint(x: apex.x - 6 * u * k, y: apex.y - 6 * u * k), control: CGPoint(x: apex.x - 1 * u * k, y: apex.y - 3 * u * k))
+        c.stroke(beams, with: .color(RGB(0.22, 0.13, 0.07).color()), style: StrokeStyle(lineWidth: 1.6 * u * k, lineCap: .round))
+        // Door.
+        var door = Path()
+        door.move(to: CGPoint(x: cx - 7 * u * k, y: base)); door.addLine(to: CGPoint(x: cx - 7 * u * k, y: base - 13 * u * k))
+        door.addQuadCurve(to: CGPoint(x: cx + 7 * u * k, y: base - 13 * u * k), control: CGPoint(x: cx, y: base - 21 * u * k)); door.addLine(to: CGPoint(x: cx + 7 * u * k, y: base)); door.closeSubpath()
+        c.fill(door, with: .color(RGB(0.08, 0.04, 0.03).color()))
+        c.fill(door, with: .color(RGB(1, 0.55, 0.15).color(0.15 + 0.7 * glow)))
+        if glow > 0.05 {
+            for side in [CGFloat(-1), 1] {
+                Fire.torch(c, at: CGPoint(x: cx + side * 11 * u * k, y: base - 12 * u * k), size: 2.6 * u * k, t: t, seed: side > 0 ? 3 : 4)
+            }
         }
     }
+
 }

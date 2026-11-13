@@ -11,6 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let env = ProcessInfo.processInfo.environment
 
+        if let dir = env["STUDYNOOK_SHEETS"] {
+            SheetRenderer.run(to: dir)
+            NSApp.terminate(nil)
+            return
+        }
         if let dir = env["STUDYNOOK_SNAPSHOT"] {
             SnapshotRenderer.run(to: dir, only: env["STUDYNOOK_ONLY"])
             NSApp.terminate(nil)
@@ -52,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func phaseChanged(from old: Phase, to new: Phase) {
         model.forcedByPhase = (new == .arrival)
+        defer { notch.syncFrame() }
 
         switch new {
         case .journey where old != .journey:

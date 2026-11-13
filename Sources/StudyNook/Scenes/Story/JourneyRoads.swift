@@ -11,19 +11,7 @@ extension JourneyLate {
         let gy = hy + 24 * u
         // The sacred city grows on the horizon.
         let k = CGFloat(0.55 + 0.45 * M.smoothstep(0, 1, p))
-        let cx = env.w * 0.8
-        var hall = Path()
-        hall.move(to: CGPoint(x: cx - 36 * u * k, y: hy + 3 * u))
-        hall.addLine(to: CGPoint(x: cx - 36 * u * k, y: hy - 20 * u * k))
-        hall.addLine(to: CGPoint(x: cx, y: hy - 46 * u * k))
-        hall.addLine(to: CGPoint(x: cx + 36 * u * k, y: hy - 20 * u * k))
-        hall.addLine(to: CGPoint(x: cx + 36 * u * k, y: hy + 3 * u))
-        hall.closeSubpath()
-        c.fill(hall, with: .linearGradient(Gradient(colors: [RGB(0.25, 0.14, 0.1).color(), RGB(0.12, 0.07, 0.06).color()]), startPoint: CGPoint(x: cx, y: hy - 46 * u * k), endPoint: CGPoint(x: cx, y: hy)))
-        for i in 0..<5 {
-            let x = cx - 28 * u * k + CGFloat(i) * 14 * u * k
-            c.fill(Path(CGRect(x: x, y: hy - 16 * u * k, width: 2 * u * k, height: 19 * u * k)), with: .color(RGB(0.08, 0.05, 0.04).color()))
-        }
+        Buildings.dothrakiHall(c, cx: env.w * 0.8, base: hy + 4 * u, k: k, u: u, glow: 0.4, t: t)
         // The horde rides right, toward the city.
         Crowd.draw(c, env, kind: .riders, count: 26, xRange: -30...(env.w + 30), yFar: hy + 12 * u, yNear: hy + 40 * u, sFar: 0.6, sNear: 1.1,
                    speed: 60, far: RGB(0.40, 0.24, 0.2), near: RGB(0.14, 0.08, 0.07), seed: 61)
@@ -57,7 +45,7 @@ extension JourneyLate {
                               y: env.h * (0.2 + 0.09 * CGFloat(i % 2)) + CGFloat(sin(t * 2 + a)) * 3 * u)
             DragonKit.fly(c, at: pos, scale: size * (i == 0 ? 1.15 : 1), climb: 0.03, facing: 1, t: t, palette: .of(d), hz: 1.5, offset: a)
             if i == 0 {
-                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03, facing: 1), h: 20 * u, style: .dany(.white), facing: 1, t: t, arms: 0.25)
+                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03, facing: 1), h: DragonKit.riderHeight(size * 1.15), style: .dany(.white), facing: 1, t: t, arms: 0.25)
             }
         }
         Stage.hazeDust(c, env, y: hy + 36 * u)
@@ -74,7 +62,7 @@ extension JourneyLate {
                               y: env.h * (0.2 + 0.1 * CGFloat(i)) + CGFloat(sin(t * 2 + a)) * 3 * u)
             DragonKit.fly(c, at: pos, scale: size * (i == 0 ? 1.15 : 1), climb: 0.03, facing: 1, t: t, palette: .of(d), hz: 1.4, offset: a)
             if i == 0 {
-                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03, facing: 1), h: 20 * u, style: .dany(.black), facing: 1, t: t, arms: 0.2)
+                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03, facing: 1), h: DragonKit.riderHeight(size * 1.15), style: .dany(.black), facing: 1, t: t, arms: 0.2)
             }
         }
         Stage.snow(c, env)
@@ -96,7 +84,7 @@ extension JourneyLate {
             let pos = CGPoint(x: env.w * (0.3 + 0.25 * CGFloat(i)) + CGFloat(p) * 30 * u + CGFloat(sin(t * 0.5 + a)) * 8 * u, y: env.h * (0.22 + 0.1 * CGFloat(i)) + CGFloat(sin(t * 2 + a)) * 3 * u)
             DragonKit.fly(c, at: pos, scale: size, climb: 0.02, facing: -1, t: t, palette: .of(d), hz: 1.4, offset: a)
             if i == 0 {
-                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: 0.02), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.2)
+                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: 0.02), h: DragonKit.riderHeight(size), style: .dany(.black), facing: -1, t: t, arms: 0.2)
             }
         }
         Stage.snow(c, env)
@@ -117,7 +105,7 @@ extension JourneyLate {
             let pos = CGPoint(x: env.w * (0.28 + 0.2 * CGFloat(i)) + CGFloat(p) * 20 * u + CGFloat(sin(t * 0.5 + a)) * 6 * u, y: env.h * (0.2 + 0.1 * CGFloat(i)) + CGFloat(sin(t * 2 + a)) * 3 * u)
             DragonKit.fly(c, at: pos, scale: size * (i == 0 ? 1.15 : 1), climb: 0.03, facing: -1, t: t, palette: .of(d), hz: 1.4, offset: a)
             if i == 0 {
-                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.25)
+                Figure.draw(c, feet: DragonKit.back(at: pos, scale: size * 1.15, climb: 0.03), h: DragonKit.riderHeight(size * 1.15), style: .dany(.black), facing: -1, t: t, arms: 0.25)
             }
         }
     }
@@ -136,7 +124,7 @@ extension JourneyLate {
         let x = M.lerp(env.w * 1.04, env.w * 0.52, CGFloat(M.easeInOut(p)))
         let pos = CGPoint(x: x, y: env.h * 0.26 + CGFloat(sin(t * 1.7)) * 3 * u)
         DragonKit.fly(c, at: pos, scale: size, climb: 0.02, facing: -1, t: t, palette: .drogon, hz: 1.3)
-        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: 0.02), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.2)
+        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: 0.02), h: DragonKit.riderHeight(size), style: .dany(.black), facing: -1, t: t, arms: 0.2)
         Landscape.clouds(c, env.size, u: u, t: t, tint: RGB(1, 0.8, 0.7), opacity: 0.6)
     }
 }
@@ -188,7 +176,7 @@ extension JourneyLate {
         let x = M.lerp(env.w * 1.06, env.w * -0.06, CGFloat(M.easeInOut(pass)))
         let pos = CGPoint(x: x, y: env.h * 0.22 + CGFloat(sin(pass * .pi)) * 10 * u + CGFloat(sin(t * 1.7)) * 2 * u)
         DragonKit.fly(c, at: pos, scale: size, climb: -0.12, facing: -1, t: t, palette: .drogon, hz: 1.5)
-        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: -0.12), h: 20 * u, style: .dany(.black), facing: -1, t: t, arms: 0.3)
+        Figure.draw(c, feet: DragonKit.back(at: pos, scale: size, climb: -0.12), h: DragonKit.riderHeight(size), style: .dany(.black), facing: -1, t: t, arms: 0.3)
         let m = DragonKit.mouth(at: pos, scale: size, climb: -0.12)
         Fire.breath(c, from: m, angle: .pi * 0.58, length: 60 * u, t: t, u: u, intensity: 1)
         Stage.wash(c, env, RGB(1, 0.3, 0.06), 0.1 + 0.06 * sin(t * 6))

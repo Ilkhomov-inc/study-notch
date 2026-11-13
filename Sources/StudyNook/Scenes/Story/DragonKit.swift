@@ -43,8 +43,21 @@ enum DragonKit {
     /// A rider standing on the dragon's back.
     static func back(at p: CGPoint, scale: CGFloat, climb: Double = 0, facing: CGFloat = -1) -> CGPoint {
         let angle = facing < 0 ? climb : -climb
-        return DragonPose(position: p, angle: angle, scale: scale, flip: facing).world(CGPoint(x: 6, y: -8))
+        return DragonPose(position: p, angle: angle, scale: scale, flip: facing).world(CGPoint(x: 1, y: -10.5))
     }
+
+    /// Daenerys held in the claws under a flying dragon (the epilogue).
+    static func carry(_ c: GraphicsContext, at p: CGPoint, scale: CGFloat, climb: Double = 0, facing: CGFloat = -1, t: Double) {
+        let angle = facing < 0 ? climb : -climb
+        let hold = DragonPose(position: p, angle: angle, scale: scale, flip: facing).world(CGPoint(x: 10, y: 13))
+        var g = c
+        g.translateBy(x: hold.x, y: hold.y)
+        g.rotate(by: .degrees(facing > 0 ? 80 : -80))
+        Figure.draw(g, feet: CGPoint(x: 0, y: riderHeight(scale) * 0.5), h: riderHeight(scale) * 1.1, style: .dany(.black), facing: 1, t: 0)
+    }
+
+    /// Height of a rider in proportion to the dragon (the dragon is about 110 units long).
+    static func riderHeight(_ scale: CGFloat) -> CGFloat { scale * 30 }
 
     /// Three eggs in a row: black-red, green-bronze, cream-gold.
     static func eggs(_ c: GraphicsContext, at p: CGPoint, u: CGFloat, t: Double, glow: Double = 0.4) {

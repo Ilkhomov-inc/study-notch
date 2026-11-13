@@ -35,14 +35,14 @@ enum StoryScenes {
 
     static func roadEnv(_ env: SceneEnv, _ ch: Chapter) -> SceneEnv {
         let r = roadRange(ch)
-        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * env.p, total: env.total, calm: true)
+        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * env.p, total: env.total / max(0.05, r.upperBound - r.lowerBound), calm: true)
     }
 
     /// The event as a scene environment, while it plays (the first part of a rest).
     static func eventEnv(_ env: SceneEnv, _ ch: Chapter) -> SceneEnv? {
         guard env.p < eventShare, let r = eventRange(ch) else { return nil }
         let local = env.p / eventShare
-        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * local, total: env.total * eventShare, calm: false)
+        return SceneEnv(size: env.size, t: env.t, p: r.lowerBound + (r.upperBound - r.lowerBound) * local, total: env.total * eventShare / max(0.05, r.upperBound - r.lowerBound), calm: false)
     }
 
     static func background(_ c: GraphicsContext, _ env: SceneEnv, phase: Phase, chapter ch: Chapter) {
@@ -50,9 +50,9 @@ enum StoryScenes {
         case .idle where ch == .birth:
             break // the idle night scene is drawn in one piece in the foreground
         case .idle:
-            journeyBackground(c, roadEnv(env, ch), ch)
+            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: 1500), ch), ch)
         case .journey, .arrival:
-            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: phase == .arrival ? 1 : env.p, total: env.total), ch), ch)
+            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: phase == .arrival ? 1 : env.p, total: phase == .arrival ? 1500 : env.total), ch), ch)
         case .choice, .rest:
             if let ev = eventEnv(env, ch) { journeyBackground(c, ev, ch) } else { RestStory.background(c, env, ch) }
         }
@@ -63,11 +63,11 @@ enum StoryScenes {
         case .idle where ch == .birth:
             IdlePainter.draw(c, size: env.size, t: env.t, ready: false)
         case .idle:
-            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: env.total), ch), ch)
+            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: 1500), ch), ch)
         case .journey:
             journeyForeground(c, roadEnv(env, ch), ch)
         case .arrival:
-            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 1, total: env.total), ch), ch)
+            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 1, total: 1500), ch), ch)
             banner(c, env, ch)
         case .choice, .rest:
             if let ev = eventEnv(env, ch) {
@@ -77,7 +77,7 @@ enum StoryScenes {
             }
             // A quick dip to black between the event and the quiet scene.
             if phase == .rest, eventRange(ch) != nil {
-                let d = abs(env.p - eventShare), half = 0.45 / env.total
+                let d = abs(env.p - eventShare), half = 0.75 / env.total
                 if d < half { Stage.wash(c, env, RGB(0, 0, 0), 1 - d / half) }
             }
         }

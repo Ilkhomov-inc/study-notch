@@ -9,10 +9,10 @@ enum JourneyEarly {
 
     static func beat(_ p: Double) -> (index: Int, local: Double) {
         var start = 0.0
-        for (i, end) in birthBeats.enumerated() where p <= end {
-            return (i, (p - start) / (end - start))
+        for (i, end) in birthBeats.enumerated() {
+            if p <= end { return (i, (p - start) / (end - start)) }
+            start = end
         }
-        start = birthBeats[birthBeats.count - 2]
         return (birthBeats.count - 1, 1)
     }
 
@@ -99,22 +99,42 @@ enum JourneyEarly {
                 c.fill(Ink.circle(p, (2 + CGFloat(a) * 5) * u), with: .color(RGB(0.85, 0.6, 0.4).color(0.28 * (1 - a))))
             }
         case 2:
-            // Inside the tent: Drogo lies on his bed, Daenerys sits next to him.
-            c.fill(Path(roundedRect: CGRect(x: env.w * 0.34, y: hy + 2 * u, width: env.w * 0.4, height: 14 * u), cornerRadius: 4 * u),
-                   with: .color(RGB(0.55, 0.12, 0.12).color()))
-            c.fill(Path(roundedRect: CGRect(x: env.w * 0.34, y: hy - 1 * u, width: env.w * 0.4, height: 5 * u), cornerRadius: 3 * u),
-                   with: .color(RGB(0.78, 0.65, 0.4).color()))
+            // Inside the tent: Drogo lies on a bed of furs, Daenerys kneels at his side, braziers burn low.
+            let bedX = env.w * 0.42, bedW = 66 * u, bedY = hy + 9 * u
+            c.fill(Path(roundedRect: CGRect(x: bedX, y: bedY, width: bedW, height: 6 * u), cornerRadius: 1.5 * u), with: .linearGradient(
+                Gradient(colors: [RGB(0.42, 0.26, 0.14).color(), RGB(0.2, 0.11, 0.06).color()]), startPoint: CGPoint(x: 0, y: bedY), endPoint: CGPoint(x: 0, y: bedY + 6 * u)))
+            for lx in [bedX + 2 * u, bedX + bedW - 4 * u] {
+                c.fill(Path(CGRect(x: lx, y: bedY + 6 * u, width: 2 * u, height: 4 * u)), with: .color(RGB(0.2, 0.11, 0.06).color()))
+            }
+            var fur = Path()
+            fur.move(to: CGPoint(x: bedX - 2 * u, y: bedY + 2 * u))
+            var fx = bedX - 2 * u
+            var k = 0
+            while fx < bedX + bedW + 2 * u {
+                fur.addLine(to: CGPoint(x: fx + 1.5 * u, y: bedY - 3 * u - CGFloat(k % 2) * 1.2 * u))
+                fx += 3 * u; k += 1
+            }
+            fur.addLine(to: CGPoint(x: bedX + bedW + 2 * u, y: bedY + 2 * u))
+            fur.closeSubpath()
+            c.fill(fur, with: .linearGradient(Gradient(colors: [RGB(0.62, 0.52, 0.42).color(), RGB(0.34, 0.27, 0.22).color()]),
+                                              startPoint: CGPoint(x: 0, y: bedY - 4 * u), endPoint: CGPoint(x: 0, y: bedY + 2 * u)))
+            c.fill(Ink.ellipse(CGPoint(x: bedX + 7 * u, y: bedY - 3.5 * u), 7 * u, 3 * u), with: .color(RGB(0.7, 0.5, 0.3).color()))
             var lying = c
-            lying.translateBy(x: env.w * 0.72, y: hy + 1 * u)
+            lying.translateBy(x: bedX + bedW - 3 * u, y: bedY - 4 * u)
             lying.rotate(by: .degrees(-90))
-            Figure.draw(lying, feet: .zero, h: 34 * u, style: .drogo, facing: 1, t: t, arms: 0)
-            let hand = CGPoint(x: env.w * 0.56, y: hy - 5 * u)
-            Daenerys.draw(c, base: CGPoint(x: env.w * 0.3, y: hy + 17 * u), u: 1.2 * u, hand: hand, t: t, rim: RGB(1, 0.6, 0.3).color(0.4), outfit: .dothraki)
-            // Candle light on the wall.
-            let cx = env.w * 0.86
-            c.fill(Path(CGRect(x: cx - 1.2 * u, y: hy - 2 * u, width: 2.4 * u, height: 12 * u)), with: .color(RGB(0.9, 0.85, 0.7).color()))
-            Fire.torch(c, at: CGPoint(x: cx, y: hy - 2 * u), size: 2.4 * u, t: t, seed: 7)
-            Stage.wash(c, env, RGB(1, 0.5, 0.2), 0.08 + 0.04 * sin(t * 9))
+            Figure.draw(lying, feet: .zero, h: 58 * u, style: .drogo, facing: 1, t: 0, arms: 0)
+            Daenerys.draw(c, base: CGPoint(x: bedX - 10 * u, y: bedY + 7 * u), u: 1.1 * u, hand: CGPoint(x: bedX + 16 * u, y: bedY - 9 * u),
+                          t: t, rim: RGB(1, 0.6, 0.3).color(0.4), outfit: .dothraki)
+            // Braziers.
+            for bx in [bedX - 44 * u, bedX + bedW + 22 * u] {
+                c.fill(Path(CGRect(x: bx - 0.8 * u, y: bedY - 4 * u, width: 1.6 * u, height: 14 * u)), with: .color(RGB(0.25, 0.16, 0.1).color()))
+                var bowl = Path()
+                bowl.move(to: CGPoint(x: bx - 6 * u, y: bedY - 5 * u)); bowl.addQuadCurve(to: CGPoint(x: bx + 6 * u, y: bedY - 5 * u), control: CGPoint(x: bx, y: bedY + 1 * u)); bowl.closeSubpath()
+                c.fill(bowl, with: .color(RGB(0.5, 0.36, 0.18).color()))
+                Fire.flames(c, x0: bx - 5 * u, x1: bx + 5 * u, y: bedY - 5 * u, height: 10 * u, intensity: 0.8, t: t, seed: Int(bx) % 13, u: u)
+            }
+            Fire.smoke(c, x0: bedX - 46 * u, x1: bedX - 40 * u, y: bedY - 12 * u, rise: 50 * u, t: t, u: u, opacity: 0.2, wind: 6)
+            Stage.wash(c, env, RGB(1, 0.5, 0.2), 0.07 + 0.03 * sin(t * 9))
             Stage.vignette(c, env, strength: 0.55)
         case 3:
             pyre(c, env, local: l)
@@ -122,7 +142,7 @@ enum JourneyEarly {
             hatching(c, env, local: l)
         }
         // Soft cut between scenes: a quick dip to black.
-        let half = 0.45 / env.total
+        let half = 0.75 / env.total
         for edge in birthBeats.dropLast() {
             let d = abs(env.p - edge)
             if d < half { Stage.wash(c, env, RGB(0, 0, 0), 1 - d / half) }
@@ -187,10 +207,10 @@ enum JourneyEarly {
         if a > 0.05 {
             var d = c
             d.opacity = a
-            DragonKit.sitting(d, base: CGPoint(x: cx - 7 * u, y: gy - 24 * u), scale: 0.1 * u, t: t, palette: .drogon, facing: 1)
+            DragonKit.sitting(d, base: CGPoint(x: cx - 7 * u, y: gy - 24 * u), scale: 0.17 * u, t: t, palette: .drogon, facing: 1)
             DragonKit.fly(d, at: CGPoint(x: cx + 24 * u + CGFloat(sin(t * 0.9)) * 4 * u, y: gy - 44 * u + CGFloat(sin(t * 2)) * 3 * u),
-                          scale: 0.12 * u, climb: 0.1, facing: -1, t: t, palette: .rhaegal, hz: 2.4)
-            DragonKit.sitting(d, base: CGPoint(x: cx + 16 * u, y: gy + 4 * u), scale: 0.11 * u, t: t, palette: .viserion, facing: -1, eyesClosed: false)
+                          scale: 0.2 * u, climb: 0.1, facing: -1, t: t, palette: .rhaegal, hz: 2.4)
+            DragonKit.sitting(d, base: CGPoint(x: cx + 16 * u, y: gy + 4 * u), scale: 0.18 * u, t: t, palette: .viserion, facing: -1, eyesClosed: false)
         }
         // Golden light and sparkles.
         var g = c
@@ -273,7 +293,7 @@ enum JourneyEarly {
             Stage.wash(c, env, RGB(0.3, 0.2, 0.8), 0.1)
             Stage.vignette(c, env, strength: 0.5)
         }
-        let d = abs(p - 0.8), half = 0.45 / env.total
+        let d = abs(p - 0.8), half = 0.75 / env.total
         if d < half { Stage.wash(c, env, RGB(0, 0, 0), 1 - d / half) }
     }
 
@@ -299,7 +319,11 @@ enum JourneyEarly {
         // Kraznys on his platform.
         let burn = M.smoothstep(0.40, 0.50, p) * (1 - M.smoothstep(0.72, 0.8, p))
         let kx = env.w * 0.16
-        c.fill(Path(roundedRect: CGRect(x: kx - 22 * u, y: gy - 2 * u, width: 44 * u, height: 8 * u), cornerRadius: 2 * u), with: .color(RGB(0.5, 0.3, 0.2).color()))
+        if p < 0.78 {
+            // A stone dais with two steps.
+            c.fill(Path(roundedRect: CGRect(x: kx - 22 * u, y: gy, width: 44 * u, height: 7 * u), cornerRadius: 1.5 * u), with: .color(RGB(0.55, 0.36, 0.26).color()))
+            c.fill(Path(roundedRect: CGRect(x: kx - 17 * u, y: gy - 3 * u, width: 34 * u, height: 4 * u), cornerRadius: 1.5 * u), with: .color(RGB(0.66, 0.45, 0.32).color()))
+        }
         if p < 0.78 {
             Figure.draw(c, feet: CGPoint(x: kx, y: gy - 2 * u), h: 36 * u, style: .kraznys, facing: 1, t: t, arms: 0.5 + 0.2 * sin(t * 2))
         }
@@ -338,21 +362,8 @@ enum JourneyEarly {
         if env.calm { JourneyLate.vaesRoad(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let gy = hy + 24 * u, cx = env.w * 0.5
-        // The temple: a big wooden hall with a pointed roof.
-        var hall = Path()
-        hall.move(to: CGPoint(x: cx - 44 * u, y: gy))
-        hall.addLine(to: CGPoint(x: cx - 44 * u, y: gy - 26 * u))
-        hall.addLine(to: CGPoint(x: cx, y: gy - 58 * u))
-        hall.addLine(to: CGPoint(x: cx + 44 * u, y: gy - 26 * u))
-        hall.addLine(to: CGPoint(x: cx + 44 * u, y: gy))
-        hall.closeSubpath()
-        c.fill(hall, with: .linearGradient(Gradient(colors: [RGB(0.12, 0.07, 0.05).color(), RGB(0.3, 0.16, 0.08).color()]),
-                                           startPoint: CGPoint(x: cx, y: gy - 58 * u), endPoint: CGPoint(x: cx, y: gy)))
-        var door = Path()
-        door.move(to: CGPoint(x: cx - 9 * u, y: gy)); door.addLine(to: CGPoint(x: cx - 9 * u, y: gy - 20 * u))
-        door.addQuadCurve(to: CGPoint(x: cx + 9 * u, y: gy - 20 * u), control: CGPoint(x: cx, y: gy - 32 * u)); door.addLine(to: CGPoint(x: cx + 9 * u, y: gy))
-        door.closeSubpath()
-        c.fill(door, with: .color(RGB(0.9, 0.35, 0.05).color(0.15 + 0.7 * M.smoothstep(0, 0.4, p))))
+        // The temple of the khals.
+        Buildings.dothrakiHall(c, cx: cx, base: gy, k: 1.0, u: u, glow: 0.2 + 0.8 * M.smoothstep(0, 0.4, p), t: t)
         let intensity = 0.15 + 1.1 * M.smoothstep(0.05, 0.55, p)
         Fire.flames(c, x0: cx - 42 * u, x1: cx + 42 * u, y: gy, height: 70 * u, intensity: intensity, t: t, seed: 15, u: u)
         Fire.flames(c, x0: cx - 30 * u, x1: cx + 30 * u, y: gy - 24 * u, height: 40 * u, intensity: intensity * M.smoothstep(0.25, 0.6, p), t: t + 1, seed: 16, u: u)
@@ -361,7 +372,7 @@ enum JourneyEarly {
         // Daenerys steps out of the flames.
         let out = M.smoothstep(0.55, 0.8, p)
         if out > 0.01 {
-            let pos = CGPoint(x: cx, y: gy + 16 * u * CGFloat(out))
+            let pos = CGPoint(x: cx, y: gy + 5 * u * CGFloat(out))
             var g = c
             g.opacity = Double(min(1, out * 2))
             Figure.draw(g, feet: pos, h: (24 + 12 * CGFloat(out)) * u, style: .dany(.white), facing: 1, t: t, arms: 0.85)

@@ -68,6 +68,18 @@ final class NotchWindowController {
         panel?.orderFrontRegardless()
     }
 
+    /// Grows the panel the moment the island opens; shrinks it once the closing animation is over.
+    func syncFrame() {
+        guard let panel else { return }
+        let now = Date()
+        if model.isExpanded { bigUntil = now.addingTimeInterval(0.9) }
+        let wantBig = now < bigUntil
+        if wantBig != isBig {
+            isBig = wantBig
+            panel.setFrame(frame(big: wantBig), display: true)
+        }
+    }
+
     private func step() {
         engine.tick()
         guard let panel else { return }
@@ -76,12 +88,8 @@ final class NotchWindowController {
         let now = Date()
         let expanded = model.isExpanded
 
-        if expanded { bigUntil = now.addingTimeInterval(0.9) }
-        let wantBig = now < bigUntil
-        if wantBig != isBig {
-            isBig = wantBig
-            panel.setFrame(frame(big: wantBig), display: true)
-        }
+        // Resize right after the hover state below changes, not one tick later.
+        defer { syncFrame() }
         let island = model.islandRect(expanded: expanded, active: engine.phase != .idle)
 
         // The panel takes clicks only while the cursor is over the open island; everywhere else clicks pass through.

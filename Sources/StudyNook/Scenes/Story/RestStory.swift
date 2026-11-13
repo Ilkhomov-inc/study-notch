@@ -232,6 +232,7 @@ enum RestStory {
         // Drogon carries Daenerys east, toward the sunrise.
         let pos = CGPoint(x: env.w * (0.3 + 0.35 * CGFloat(M.smoothstep(0, 1, env.p))), y: env.h * 0.34 + CGFloat(sin(t * 1.4)) * 3 * u)
         DragonKit.fly(c, at: pos, scale: 0.62 * u, climb: 0.04, facing: 1, t: t, palette: .drogon, hz: 1.1)
+        DragonKit.carry(c, at: pos, scale: 0.62 * u, climb: 0.04, facing: 1, t: t)
         var glow = c
         glow.blendMode = .plusLighter
         for i in 0..<16 {

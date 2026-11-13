@@ -2,7 +2,7 @@ import SwiftUI
 import StudyNookCore
 
 /// Scene card in the expanded island.
-/// Two layers keep the battery happy: the slow background is redrawn once a second,
+/// Two layers keep the battery happy: the slow background is redrawn twice a second,
 /// the foreground at 20 fps (12 fps with Low Power Mode or Reduce Motion), and nothing is drawn while the screen sleeps.
 struct SceneCard: View {
     let engine: PomodoroEngine
@@ -15,7 +15,7 @@ struct SceneCard: View {
         let total = max(1, engine.duration(of: phase))
         let slow = reduceMotion || ProcessInfo.processInfo.isLowPowerModeEnabled
         ZStack {
-            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
                 let p = engine.progress(at: ctx.date)
                 Canvas(opaque: true) { c, size in
                     StoryScenes.background(c, SceneEnv(size: size, t: 0, p: p, total: total), phase: phase, chapter: chapter)
