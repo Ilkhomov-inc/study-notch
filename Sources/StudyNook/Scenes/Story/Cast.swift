@@ -103,17 +103,42 @@ enum Figure {
             c.fill(skirt, with: .linearGradient(Gradient(colors: [s.cloth.color(), s.cloth2.color()]),
                                                 startPoint: P(0, -10), endPoint: P(0, 0)))
         } else {
+            let boot = RGB(s.cloth2.r * 0.45, s.cloth2.g * 0.4, s.cloth2.b * 0.38)
             for (i, side) in [(-1.0, CGFloat(-1)), (1.0, 1)].enumerated() {
                 let dx = CGFloat(side.0) * 0.9 + side.1 * swing * 2.4
-                let leg = [P(CGFloat(side.0) * 0.7, -9), P(dx, -0.4)]
-                c.stroke(Path { $0.move(to: leg[0]); $0.addLine(to: leg[1]) },
-                         with: .color((i == 0 ? s.cloth2 : s.cloth2).color()), style: StrokeStyle(lineWidth: 1.9 * k, lineCap: .round))
+                let hip = P(CGFloat(side.0) * 0.7, -9)
+                let foot = P(dx, -0.4)
+                let knee = CGPoint(x: (hip.x + foot.x) / 2 + side.1 * swing * 0.5 * k + 0.3 * k, y: (hip.y + foot.y) / 2)
+                let legColor = i == 0 ? RGB(s.cloth2.r * 0.8, s.cloth2.g * 0.8, s.cloth2.b * 0.8) : s.cloth2
+                c.fill(Ink.tapered([hip, knee, foot], 2.1 * k, 1.5 * k), with: .color(legColor.color()))
+                // Boot.
+                c.fill(Ink.tapered([CGPoint(x: (knee.x + foot.x) / 2, y: (knee.y + foot.y) / 2 + 0.6 * k), foot], 1.7 * k, 1.6 * k), with: .color(boot.color()))
+                c.fill(Ink.ellipse(CGPoint(x: foot.x + 0.6 * k, y: foot.y), 1.1 * k, 0.55 * k), with: .color(boot.color()))
             }
         }
 
         // Torso.
-        c.fill(Ink.tapered([P(0, -9.2), P(0, -16)], 4.6 * k, 5.2 * k), with: .color(s.cloth.color()))
-        c.fill(Path(CGRect(x: -2.4 * k, y: (-10.4 * k) - bob, width: 4.8 * k, height: 0.9 * k)), with: .color(s.cloth2.color()))
+        let light = RGB.lerp(s.cloth, RGB(1, 1, 1), 0.18), shadow = RGB(s.cloth.r * 0.62, s.cloth.g * 0.62, s.cloth.b * 0.66)
+        var torso = Path()
+        torso.move(to: P(-2.2, -9.2))
+        torso.addLine(to: P(2.4, -9.2))
+        torso.addQuadCurve(to: P(2.9, -15.8), control: P(3.1, -12.5))
+        torso.addQuadCurve(to: P(-2.7, -15.8), control: P(0.1, -16.8))
+        torso.addQuadCurve(to: P(-2.2, -9.2), control: P(-2.9, -12.5))
+        torso.closeSubpath()
+        c.fill(torso, with: .linearGradient(Gradient(colors: [light.color(), s.cloth.color(), shadow.color()]), startPoint: P(2.8, -12), endPoint: P(-2.8, -12)))
+        // Belt with a buckle.
+        c.fill(Path(CGRect(x: -2.4 * k, y: (-10.4 * k) - bob, width: 4.9 * k, height: 0.9 * k)), with: .color(s.cloth2.color()))
+        c.fill(Path(CGRect(x: 0.6 * k, y: (-10.5 * k) - bob, width: 0.9 * k, height: 1.1 * k)), with: .color(RGB(0.85, 0.7, 0.35).color()))
+        if s.hairKind == .helmet {
+            // Breastplate shine and a shoulder plate.
+            c.fill(Ink.ellipse(P(1, -13.6), 1.2 * k, 1.8 * k), with: .color(.white.opacity(0.22)))
+            c.fill(Ink.ellipse(P(0.6, -15.6), 1.9 * k, 1.1 * k), with: .color(s.cloth2.color()))
+            c.stroke(Path { $0.move(to: P(-2.4, -12.6)); $0.addLine(to: P(2.7, -12.6)) }, with: .color(shadow.color(0.8)), lineWidth: 0.35 * k)
+        } else {
+            // Collar.
+            c.fill(Ink.ellipse(P(0.2, -15.8), 1.8 * k, 0.7 * k), with: .color(shadow.color()))
+        }
 
         // Head and hair.
         let hc = P(0.2, -18.5)
@@ -153,6 +178,14 @@ enum Figure {
         case .hood:
             c.fill(Ink.circle(hc, 2.3 * k), with: .color(s.cloth.color()))
             c.fill(Ink.circle(CGPoint(x: hc.x + 0.5 * k, y: hc.y + 0.2 * k), 1.5 * k), with: .color(s.skin.color()))
+        }
+        if s.hairKind != .hood {
+            let faceShade = RGB(s.skin.r * 0.8, s.skin.g * 0.72, s.skin.b * 0.68)
+            c.fill(Path { p in p.move(to: P(2.0, -18.9)); p.addLine(to: P(2.75, -17.9)); p.addLine(to: P(2.0, -17.6)); p.closeSubpath() }, with: .color(faceShade.color()))
+            c.fill(Ink.ellipse(P(1.25, -18.75), 0.32 * k, 0.26 * k), with: .color(RGB(0.12, 0.08, 0.07).color()))
+            c.stroke(Path { $0.move(to: P(0.75, -19.35)); $0.addLine(to: P(1.75, -19.45)) }, with: .color(s.hair.color(0.9)), lineWidth: 0.3 * k)
+            c.stroke(Path { $0.move(to: P(1.35, -17.25)); $0.addLine(to: P(2.05, -17.3)) }, with: .color(RGB(0.6, 0.3, 0.28).color(0.8)), lineWidth: 0.25 * k)
+            c.fill(Ink.ellipse(P(0.4, -17.9), 0.7 * k, 0.5 * k), with: .color(RGB(0.95, 0.55, 0.5).color(0.18)))
         }
         if let glow = s.eyeGlow {
             var g = c

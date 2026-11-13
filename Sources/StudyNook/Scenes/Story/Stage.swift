@@ -66,7 +66,7 @@ enum Stage {
             c.fill(Ink.circle(p, r), with: .color(RGB(0.98, 0.95, 0.85).color()))
         }
         if let s = b.sun, s.y < b.horizon + 0.02 {
-            godRays(c, env, from: CGPoint(x: env.w * s.x, y: env.h * s.y), color: s.color, alpha: 0.035, count: 5)
+            godRays(c, env, from: CGPoint(x: env.w * s.x, y: env.h * s.y), color: s.color, alpha: 0.018, count: 5)
         }
         switch b.ground {
         case let .sea(top, bottom):

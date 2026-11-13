@@ -234,6 +234,7 @@ enum JourneyEarly {
     // MARK: - Chapter 2: Red Waste → Qarth
 
     static func qarthBackground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.p >= 0.8 { undyingBackground(c, env); return }
         let p = env.p, u = env.u, hy = env.hy
         if p < 0.8 {
             let top = RGB.lerp(Backdrop.daySky.0, RGB(0.45, 0.25, 0.38), M.smoothstep(0.4, 0.8, p))
@@ -256,6 +257,7 @@ enum JourneyEarly {
     }
 
     static func qarthForeground(_ c: GraphicsContext, _ env: SceneEnv) {
+        if env.p >= 0.8 { undyingForeground(c, env); return }
         let p = env.p, u = env.u, t = env.t, hy = env.hy
         let size = DragonKit.size(.qarth)
         if p < 0.8 {

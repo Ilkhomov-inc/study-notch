@@ -100,8 +100,31 @@ enum Crowd {
         }
         items.sort { $0.z < $1.z }
         let dir: CGFloat = speed < 0 ? -1 : 1
+        var detailed = 0
         for it in items {
             let color = RGB.lerp(far, near, it.z)
+            // The nearest rank is drawn in full: real horses, faces, armour.
+            if it.z > 0.78 && detailed < 8 && kind != .kneelers {
+                detailed += 1
+                let phase = env.t * 7 + Double(it.idx)
+                let feet = CGPoint(x: it.x, y: it.y)
+                switch kind {
+                case .riders:
+                    Horse.ridden(c, at: feet, scale: it.s, coat: .random(it.idx), rider: .dothrakiRider, phase: phase,
+                                 saddle: RGB(0.4, 0.25, 0.15), facing: dir, moving: !standing, t: env.t + Double(it.idx), arms: 0.2)
+                case .soldiers:
+                    let style = FigureStyle(skin: RGB(0.85, 0.68, 0.55), cloth: near, cloth2: RGB(near.r * 0.6, near.g * 0.6, near.b * 0.6),
+                                            hair: RGB(0.2, 0.14, 0.1), hairKind: standing ? .short : .helmet, prop: standing ? .none : .spear)
+                    Figure.draw(c, feet: feet, h: it.s * 22, style: style, facing: dir, t: env.t + Double(it.idx) * 0.4, walk: standing ? 0 : 1)
+                case .unsullied:
+                    Figure.draw(c, feet: feet, h: it.s * 22, style: .unsullied, facing: dir, t: env.t + Double(it.idx) * 0.4, walk: standing ? 0 : 1)
+                case .wights:
+                    Figure.draw(c, feet: feet, h: it.s * 20, style: .wight, facing: dir, t: env.t + Double(it.idx) * 0.4, walk: 1, arms: 0.5)
+                case .kneelers:
+                    break
+                }
+                continue
+            }
             let frame = standing ? 0 : Int(env.t * (kind == .riders ? 7 : 4) + Double(it.idx) * 0.37) & 3
             let stamp: Path
             switch kind {

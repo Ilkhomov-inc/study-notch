@@ -232,6 +232,10 @@ enum DragonPainter {
         c.fill(body, with: .linearGradient(
             Gradient(colors: [pal.bodyDark, pal.body, pal.belly]),
             startPoint: CGPoint(x: 0, y: -11), endPoint: CGPoint(x: 0, y: 10)))
+        c.stroke(body, with: .color(pal.bodyDark.opacity(0.7)), lineWidth: 0.6)
+        var shine = c
+        shine.blendMode = .plusLighter
+        shine.fill(Ink.ellipse(CGPoint(x: 3, y: -6.5), 9, 2.2), with: .color(.white.opacity(0.1)))
         // Spikes along the back.
         var spikes = Path()
         let back1 = QuadCurve(p0: CGPoint(x: -22, y: -1), c: CGPoint(x: -14, y: -9), p1: CGPoint(x: -2, y: -10))
@@ -276,6 +280,14 @@ enum DragonPainter {
         c.fill(Ink.tapered(neck, 11.5, 6.5), with: .linearGradient(
             Gradient(colors: [pal.bodyDark, pal.body, pal.belly]),
             startPoint: CGPoint(x: 26, y: -20), endPoint: CGPoint(x: 14, y: 2)))
+        c.stroke(Ink.tapered(neck, 11.5, 6.5), with: .color(pal.bodyDark.opacity(0.6)), lineWidth: 0.5)
+        var throat = Path()
+        for k in stride(from: 3, to: neck.count - 1, by: 2) {
+            let a = neck[k]
+            throat.move(to: CGPoint(x: a.x + 1.4, y: a.y + 2.9))
+            throat.addLine(to: CGPoint(x: a.x + 3.4, y: a.y + 1.2))
+        }
+        c.stroke(throat, with: .color(pal.bodyDark.opacity(0.45)), lineWidth: 0.45)
         var crest = Path()
         for k in stride(from: 2, to: neck.count - 2, by: 3) {
             let a = neck[k]
@@ -313,6 +325,20 @@ enum DragonPainter {
         let top = s >= 0 ? fill : fill.opacity(0.82)
         c.fill(m, with: .linearGradient(Gradient(colors: [top, fill.opacity(0.72)]),
                                         startPoint: wingWrist, endPoint: CGPoint(x: -36, y: -24)))
+        var veins = Path()
+        for i in 0..<(wingTips.count - 1) {
+            let a = wingTips[i], b = wingTips[i + 1]
+            let start = CGPoint(x: wingWrist.x + (a.x - wingWrist.x) * 0.5, y: wingWrist.y + (a.y - wingWrist.y) * 0.5)
+            let end = CGPoint(x: (a.x + b.x) / 2 + 2.5, y: (a.y + b.y) / 2 + 3.5)
+            veins.move(to: start)
+            veins.addQuadCurve(to: end, control: CGPoint(x: (start.x + end.x) / 2 - 2, y: (start.y + end.y) / 2 + 1))
+            let start2 = CGPoint(x: wingWrist.x + (b.x - wingWrist.x) * 0.7, y: wingWrist.y + (b.y - wingWrist.y) * 0.7)
+            veins.move(to: start2)
+            veins.addLine(to: CGPoint(x: (start2.x + end.x) / 2, y: (start2.y + end.y) / 2 + 1))
+        }
+        c.stroke(veins, with: .color(bone.opacity(0.28)), lineWidth: 0.45)
+        c.stroke(m, with: .color(edge.opacity(0.22)), lineWidth: 1.6)
+        c.stroke(m, with: .color(bone.opacity(0.6)), lineWidth: 0.5)
         // Fingers with a soft glow, the arm bone, joints.
         var fingers = Path()
         for tip in wingTips {
@@ -349,6 +375,13 @@ enum DragonPainter {
         c.fill(Ink.tapered(Ink.quad(CGPoint(x: 3.5, y: -4.2), CGPoint(x: 0, y: -9), CGPoint(x: -5, y: -11)), 2.2, 0.4),
                with: .color(pal.horn.opacity(0.85)))
 
+        var rings = Path()
+        let hornPts = Ink.quad(CGPoint(x: 1, y: -3.5), CGPoint(x: -4, y: -7), CGPoint(x: -9, y: -8))
+        for f in [0.25, 0.45, 0.65] as [CGFloat] {
+            let p0 = hornPts[Int(f * CGFloat(hornPts.count - 1))]
+            rings.move(to: CGPoint(x: p0.x - 0.5, y: p0.y - 0.9)); rings.addLine(to: CGPoint(x: p0.x + 0.5, y: p0.y + 0.9))
+        }
+        c.stroke(rings, with: .color(pal.bodyDark.opacity(0.5)), lineWidth: 0.35)
         var head = Path()
         head.move(to: CGPoint(x: -2, y: -3.5))
         head.addQuadCurve(to: CGPoint(x: 8, y: -4.6), control: CGPoint(x: 3, y: -6))
@@ -362,6 +395,12 @@ enum DragonPainter {
             startPoint: CGPoint(x: 0, y: -5), endPoint: CGPoint(x: 0, y: 4)
         ))
 
+        c.stroke(head, with: .color(pal.bodyDark.opacity(0.7)), lineWidth: 0.5)
+        var cheek = Path()
+        for (x, y) in [(2.0, 0.5), (4.5, 1.3), (1.0, -1.6), (3.5, -1.0)] as [(CGFloat, CGFloat)] {
+            cheek.move(to: CGPoint(x: x - 0.9, y: y)); cheek.addQuadCurve(to: CGPoint(x: x + 0.9, y: y), control: CGPoint(x: x, y: y + 1))
+        }
+        c.stroke(cheek, with: .color(pal.bodyDark.opacity(0.4)), lineWidth: 0.35)
         var jaw = Path()
         jaw.move(to: CGPoint(x: 18, y: 1))
         jaw.addQuadCurve(to: CGPoint(x: 7, y: 1.8), control: CGPoint(x: 12, y: 2.1))

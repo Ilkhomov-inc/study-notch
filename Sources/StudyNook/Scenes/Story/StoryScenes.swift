@@ -50,9 +50,11 @@ enum StoryScenes {
         case .idle where ch == .birth:
             break // the idle night scene is drawn in one piece in the foreground
         case .idle:
-            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: 1500), ch), ch)
-        case .journey, .arrival:
-            journeyBackground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: phase == .arrival ? 1 : env.p, total: phase == .arrival ? 1500 : env.total), ch), ch)
+            Travel.background(c, SceneEnv(size: env.size, t: 0, p: 0, total: 1500), ch)
+        case .journey:
+            Travel.background(c, env, ch)
+        case .arrival:
+            Travel.background(c, SceneEnv(size: env.size, t: 0, p: 1, total: 1500), ch)
         case .choice, .rest:
             if let ev = eventEnv(env, ch) { journeyBackground(c, ev, ch) } else { RestStory.background(c, env, ch) }
         }
@@ -63,11 +65,12 @@ enum StoryScenes {
         case .idle where ch == .birth:
             IdlePainter.draw(c, size: env.size, t: env.t, ready: false)
         case .idle:
-            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 0.02, total: 1500), ch), ch)
+            Travel.foreground(c, SceneEnv(size: env.size, t: env.t, p: 0, total: 1500), ch)
         case .journey:
-            journeyForeground(c, roadEnv(env, ch), ch)
+            // The road: the party travels from one place to the next as the timer runs.
+            Travel.foreground(c, env, ch)
         case .arrival:
-            journeyForeground(c, roadEnv(SceneEnv(size: env.size, t: env.t, p: 1, total: 1500), ch), ch)
+            Travel.foreground(c, SceneEnv(size: env.size, t: env.t, p: 1, total: 1500), ch)
             banner(c, env, ch)
         case .choice, .rest:
             if let ev = eventEnv(env, ch) {
