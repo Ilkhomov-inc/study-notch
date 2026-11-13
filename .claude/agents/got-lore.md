@@ -1,8 +1,7 @@
 ---
 name: got-lore
 description: Use for any question about Game of Thrones lore for Study Nook scenes: who was where, how characters, dragons, ships, armies and places looked, what happened in which season. Read-only research.
-model: haiku
-effort: medium
+model: opus
 tools: WebSearch, WebFetch, Read, Grep, Glob
 ---
 
