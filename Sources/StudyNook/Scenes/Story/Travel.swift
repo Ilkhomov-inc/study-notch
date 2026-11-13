@@ -86,7 +86,7 @@ enum Travel {
             let u = env.u, hy = env.hy, w = env.w
             originX = w * 0.08
             destX = w * 0.9
-            air = QuadCurve(p0: CGPoint(x: originX + 18 * u, y: hy - 36 * u), c: CGPoint(x: w * 0.5, y: hy - 64 * u), p1: CGPoint(x: destX - 12 * u, y: hy - 36 * u))
+            air = QuadCurve(p0: CGPoint(x: originX + 18 * u, y: hy - 30 * u), c: CGPoint(x: w * 0.5, y: hy - 52 * u), p1: CGPoint(x: destX - 12 * u, y: hy - 30 * u))
             let roadY: CGFloat = plan.ground == .sea ? hy + 12 * u : hy + 26 * u
             road = QuadCurve(p0: CGPoint(x: originX + 18 * u, y: roadY + 2 * u), c: CGPoint(x: w * 0.5, y: roadY + 8 * u), p1: CGPoint(x: destX - 22 * u, y: roadY - 2 * u))
         }
@@ -121,15 +121,15 @@ enum Travel {
         // Terrain between the two places.
         switch plan.ground {
         case .steppe:
-            Stage.hills(c, env, color: RGB(0.46, 0.5, 0.3), y: hy - 1 * u, amp: 4 * u, freq: 2.2, phase: 0.4, haze: bottom, hazeAmount: 0.45)
-            Stage.hills(c, env, color: RGB(0.38, 0.44, 0.24), y: hy + 12 * u, amp: 3 * u, freq: 3, phase: 1.6, tufts: true)
+            Stage.hills(c, env, color: RGB(0.46, 0.5, 0.3), y: hy - 1 * u, amp: 4 * u, freq: 2.2, phase: 0.4, scroll: CGFloat(p) * env.w * 0.6, haze: bottom, hazeAmount: 0.45)
+            Stage.hills(c, env, color: RGB(0.38, 0.44, 0.24), y: hy + 12 * u, amp: 3 * u, freq: 3, phase: 1.6, scroll: CGFloat(p) * env.w * 1.2, tufts: true)
         case .desert:
-            Stage.hills(c, env, color: RGB(0.82, 0.56, 0.36), y: hy - 1 * u, amp: 5 * u, freq: 2.4, phase: 1, haze: bottom, hazeAmount: 0.4)
-            Stage.hills(c, env, color: RGB(0.72, 0.46, 0.3), y: hy + 13 * u, amp: 4 * u, freq: 3.2, phase: 2.2)
+            Stage.hills(c, env, color: RGB(0.82, 0.56, 0.36), y: hy - 1 * u, amp: 5 * u, freq: 2.4, phase: 1, scroll: CGFloat(p) * env.w * 0.6, haze: bottom, hazeAmount: 0.4)
+            Stage.hills(c, env, color: RGB(0.72, 0.46, 0.3), y: hy + 13 * u, amp: 4 * u, freq: 3.2, phase: 2.2, scroll: CGFloat(p) * env.w * 1.2)
             Stage.rocks(c, env, y0: hy + 16 * u, y1: env.h - 3 * u, color: RGB(0.6, 0.4, 0.28), count: 6, seed: 4)
         case .snow:
             Stage.mountains(c, env, color: RGB(0.28, 0.34, 0.5), base: hy + 2 * u, height: 40 * u, count: 6, seed: 3, snow: true)
-            Stage.hills(c, env, color: RGB(0.7, 0.76, 0.88), y: hy + 12 * u, amp: 3 * u, freq: 2.5, phase: 0.5)
+            Stage.hills(c, env, color: RGB(0.7, 0.76, 0.88), y: hy + 12 * u, amp: 3 * u, freq: 2.5, phase: 0.5, scroll: CGFloat(p) * env.w * 1.2)
         case .ash:
             Stage.hills(c, env, color: RGB(0.24, 0.2, 0.2), y: hy + 4 * u, amp: 3 * u, freq: 2, phase: 0.6, haze: bottom, hazeAmount: 0.4)
             Stage.rocks(c, env, y0: hy + 14 * u, y1: env.h - 2 * u, color: RGB(0.3, 0.25, 0.24), count: 10, seed: 9)
@@ -159,6 +159,8 @@ enum Travel {
             landmark(c, env, plan.dest, x: L.destX, side: 1, waterOnly: true)
         }
         if !plan.night { Landscape.clouds(c, env.size, u: u, t: t, tint: RGB(1, 0.94, 0.88), opacity: 0.55) }
+
+        passingBy(c, env, ground: plan.ground)
 
         // The route: dots ahead, a glow behind, a pulse on the destination.
         let route = plan.dragons.isEmpty || plan.babies ? L.road : L.air
@@ -202,7 +204,7 @@ enum Travel {
 
         // Dragons.
         // Travelling dragons are drawn a bit larger than in the battle scenes, so their detail shows.
-        let size = DragonKit.size(ch) * u * (plan.babies ? 1 : 1.35)
+        let size = DragonKit.size(ch) * u * (plan.babies ? 1 : 1.18)
         if plan.babies {
             for (i, d) in plan.dragons.enumerated() {
                 let a = Double(i) * 2.1
@@ -213,16 +215,21 @@ enum Travel {
         } else {
             for (i, d) in plan.dragons.enumerated().reversed() {
                 let a = Double(i) * 1.9
-                let back = CGFloat(i) * 0.07
+                // Spread out in a loose echelon, so no dragon hides another.
+                let back = CGFloat(i) * 0.2
                 let q = max(0, tp - back)
                 var pos = L.air.point(q)
-                pos.x -= CGFloat(i) * 6 * u
-                pos.y += CGFloat(i % 2 == 0 ? -1 : 1) * CGFloat(i) * 7 * u + CGFloat(sin(t * 2 * .pi * 0.8 + a)) * 2 * u
+                pos.x -= CGFloat(i) * 22 * u
+                pos.y += CGFloat(i % 2 == 0 ? -0.6 : 1) * CGFloat(i) * 17 * u + CGFloat(sin(t * 2 * .pi * 0.8 + a)) * 2 * u
                 let d1 = L.air.derivative(q)
-                let climb = max(-0.35, min(0.35, Double(atan2(-d1.y, d1.x)) * 0.6))
+                // Every few seconds a dragon stops beating its wings and glides, banking gently.
+                let cycle = M.fract(t / 11 + Double(i) * 0.37)
+                let glide = M.smoothstep(0.5, 0.6, cycle) * (1 - M.smoothstep(0.88, 0.98, cycle))
+                let bank = sin(t * 0.45 + a) * 0.12 - glide * 0.08
+                let climb = max(-0.4, min(0.4, Double(atan2(-d1.y, d1.x)) * 0.6 + bank))
                 let s = size * (i == 0 ? 1.12 : 1)
                 trail(c, env, along: L.air, at: q, u: u, t: t, seed: i)
-                DragonKit.fly(c, at: pos, scale: s, climb: climb, facing: 1, t: t, palette: .of(d), hz: 1.6, offset: a)
+                DragonKit.fly(c, at: pos, scale: s, climb: climb, facing: 1, t: t, palette: .of(d), hz: 1.6, offset: a, glide: glide)
                 if i == 0, let outfit = plan.rider {
                     Figure.draw(c, feet: DragonKit.back(at: pos, scale: s, climb: climb, facing: 1), h: DragonKit.riderHeight(s), style: .dany(outfit), facing: 1, t: t, arms: 0.2)
                 }
@@ -363,12 +370,9 @@ enum Travel {
                 c.stroke(grass, with: .color(RGB(0.62, 0.62, 0.34).color()), lineWidth: 0.8 * u)
             }
         case .vaesDothrak:
-            Buildings.dothrakiHall(c, cx: x - 6 * u, base: hy + 5 * u, k: 0.55, u: u, glow: 0.3, t: 0)
+            Buildings.dothrakiHall(c, cx: x - 30 * u, base: hy + 5 * u, k: 0.5, u: u, glow: 0.3, t: 0)
             // The Horse Gate: two rearing stone horses.
-            for s in [CGFloat(-1), 1] {
-                c.fill(Path(CGRect(x: x + 22 * u + s * 9 * u - 7 * u, y: hy + 6 * u, width: 14 * u, height: 4 * u)), with: .color(RGB(0.45, 0.4, 0.34).color()))
-                Horse.draw(c, at: CGPoint(x: x + 22 * u + s * 9 * u, y: hy + 6 * u), scale: 0.9 * u, coat: Horse.Coat(body: RGB(0.55, 0.5, 0.42), mane: RGB(0.4, 0.36, 0.3)), phase: 1.2, facing: -s, moving: false)
-            }
+            horseGate(c, cx: x + 8 * u, base: hy + 9 * u, k: 1.0, u: u)
         case .dragonstone:
             Buildings.dragonstone(c, base: CGPoint(x: x + side * 4 * u, y: hy + 3 * u), u: u * 1.15, t: 0, rock: RGB(0.32, 0.31, 0.38))
         case .goldenRoad:
@@ -437,6 +441,77 @@ enum Travel {
                 Gradient(colors: [RGB(min(1, color.r * 1.2), min(1, color.g * 1.2), min(1, color.b * 1.2)).color(), RGB(color.r * 0.7, color.g * 0.7, color.b * 0.7).color()]),
                 startPoint: CGPoint(x: rx, y: 0), endPoint: CGPoint(x: rx + ww, y: 0)))
             c.fill(Path(CGRect(x: rx, y: ry, width: ww, height: 0.8 * u)), with: .color(RGB(1, 0.85, 0.65).color(0.45)))
+        }
+    }
+}
+
+extension Travel {
+    /// The Horse Gate of Vaes Dothrak: two bronze stallions rearing toward each other, hooves meeting over the road.
+    static func horseGate(_ c: GraphicsContext, cx: CGFloat, base: CGFloat, k: CGFloat, u: CGFloat) {
+        let bronze = Horse.Coat(body: RGB(0.66, 0.45, 0.24), mane: RGB(0.42, 0.27, 0.13))
+        for side in [CGFloat(-1), 1] {
+            let pivot = CGPoint(x: cx + side * 9 * u * k, y: base - 6 * u * k)
+            // Stone pedestal.
+            c.fill(Path(CGRect(x: pivot.x - 8 * u * k, y: pivot.y, width: 16 * u * k, height: 6 * u * k)), with: .linearGradient(
+                Gradient(colors: [RGB(0.55, 0.5, 0.42).color(), RGB(0.32, 0.28, 0.24).color()]), startPoint: CGPoint(x: pivot.x - 8 * u * k, y: 0), endPoint: CGPoint(x: pivot.x + 8 * u * k, y: 0)))
+            c.fill(Path(CGRect(x: pivot.x - 9 * u * k, y: pivot.y - 1 * u * k, width: 18 * u * k, height: 1.6 * u * k)), with: .color(RGB(0.62, 0.57, 0.5).color()))
+            // The horse, rotated up on its hind legs.
+            var g = c
+            g.translateBy(x: pivot.x, y: pivot.y)
+            g.rotate(by: .degrees(Double(side) * 50))
+            let facing = -side
+            Horse.draw(g, at: CGPoint(x: 7 * u * k * facing, y: 0), scale: u * k, coat: bronze, phase: 2.6, facing: facing, moving: true)
+        }
+        // A green patina glint on the bronze.
+        var shine = c
+        shine.blendMode = .plusLighter
+        shine.fill(Ink.ellipse(CGPoint(x: cx, y: base - 26 * u * k), 18 * u * k, 10 * u * k), with: .radialGradient(
+            Gradient(colors: [RGB(1, 0.8, 0.5).color(0.12), RGB(1, 0.8, 0.5).color(0)]), center: CGPoint(x: cx, y: base - 26 * u * k), startRadius: 0, endRadius: 18 * u * k))
+    }
+
+    /// Things passing by close to the viewer, scrolling left: tufts and bushes, rocks, snow mounds, rubble, whitecaps.
+    /// They keep moving even on long timers, so the journey always feels like motion.
+    static func passingBy(_ c: GraphicsContext, _ env: SceneEnv, ground: Ground) {
+        let u = env.u, t = env.t, hy = env.hy
+        let span = env.w + 60 * u
+        let speed: Double = ground == .sea ? 16 : 11
+        for i in 0..<16 {
+            let z = M.rand(i, 400)
+            let v = speed * (0.6 + 0.8 * z) * Double(u)
+            let x = CGFloat(M.fract(M.rand(i, 401) - t * v / Double(span))) * span - 30 * u
+            let y = hy + (ground == .sea ? 6 : 20) * u + CGFloat(z) * (ground == .sea ? 26 : 14) * u
+            let s = (0.7 + 0.8 * CGFloat(z)) * u
+            switch ground {
+            case .steppe:
+                var g = Path()
+                for k in 0..<5 { let bx = x + CGFloat(k) * 1.4 * s; g.move(to: CGPoint(x: bx, y: y)); g.addLine(to: CGPoint(x: bx + (CGFloat(k) - 2) * 0.8 * s, y: y - (4 + CGFloat(k % 2) * 2.5) * s)) }
+                c.stroke(g, with: .color(RGB(0.52, 0.58, 0.3).color(0.85)), lineWidth: 0.7 * s)
+                if i % 4 == 0 { c.fill(Ink.ellipse(CGPoint(x: x + 3 * s, y: y - 2 * s), 4 * s, 2.6 * s), with: .color(RGB(0.3, 0.4, 0.2).color())) }
+            case .desert:
+                if i % 3 == 0 {
+                    var shrub = Path()
+                    for k in 0..<6 { let a = Double(k) / 5 * .pi; shrub.move(to: CGPoint(x: x, y: y)); shrub.addLine(to: CGPoint(x: x - CGFloat(cos(a)) * 4 * s, y: y - CGFloat(sin(a)) * 4 * s)) }
+                    c.stroke(shrub, with: .color(RGB(0.45, 0.32, 0.2).color()), lineWidth: 0.5 * s)
+                } else {
+                    c.fill(Ink.ellipse(CGPoint(x: x, y: y), 2.6 * s, 1.2 * s), with: .color(RGB(0.6, 0.42, 0.3).color()))
+                    c.fill(Ink.ellipse(CGPoint(x: x - 0.6 * s, y: y - 0.5 * s), 1.6 * s, 0.6 * s), with: .color(RGB(0.85, 0.66, 0.48).color()))
+                }
+            case .snow:
+                c.fill(Ink.ellipse(CGPoint(x: x, y: y), 6 * s, 1.8 * s), with: .color(RGB(0.9, 0.94, 1).color(0.9)))
+                if i % 5 == 0 {
+                    var twig = Path()
+                    twig.move(to: CGPoint(x: x, y: y)); twig.addLine(to: CGPoint(x: x + 1 * s, y: y - 9 * s))
+                    twig.move(to: CGPoint(x: x + 0.6 * s, y: y - 5 * s)); twig.addLine(to: CGPoint(x: x + 3 * s, y: y - 7 * s))
+                    c.stroke(twig, with: .color(RGB(0.25, 0.22, 0.24).color()), lineWidth: 0.6 * s)
+                }
+            case .ash:
+                c.fill(Path { p in p.move(to: CGPoint(x: x - 3 * s, y: y)); p.addLine(to: CGPoint(x: x - 1 * s, y: y - 2.6 * s)); p.addLine(to: CGPoint(x: x + 2.5 * s, y: y - 1.6 * s)); p.addLine(to: CGPoint(x: x + 3 * s, y: y)); p.closeSubpath() },
+                       with: .color(RGB(0.28, 0.22, 0.21).color()))
+            case .sea:
+                var cap = Path()
+                cap.move(to: CGPoint(x: x, y: y)); cap.addQuadCurve(to: CGPoint(x: x + 7 * s, y: y), control: CGPoint(x: x + 3.5 * s, y: y - 1.6 * s))
+                c.stroke(cap, with: .color(.white.opacity(0.35 + 0.3 * z)), lineWidth: 0.7 * s)
+            }
         }
     }
 }

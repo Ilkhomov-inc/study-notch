@@ -194,15 +194,57 @@ enum DragonPainter {
         g.fill(p, with: .color(color))
     }
 
+    /// The tiny dragon in the collapsed island: a few flat tones (wings, body, belly, horns, eye) in the accent colour.
+    /// Still only a handful of fills, so it stays cheap at 6 fps.
+    static func drawMini(_ c: GraphicsContext, pose: DragonPose, flapPhase: Double, color: Color) {
+        var g = c
+        g.concatenate(pose.transform)
+        let s = wingLift(flapPhase)
+        // Far wing, dimmer.
+        g.fill(wingPath().applying(wingTransform(shoulder: CGPoint(x: -3, y: -8), lift: wingLift(flapPhase - 0.45), size: 0.9)), with: .color(color.opacity(0.45)))
+        // Tail, body, neck, head.
+        var body = bodyPath()
+        body.addPath(Ink.tapered(tailPoints(t: 0), 9, 1.5))
+        body.addPath(Ink.tapered(neckPoints(), 11, 6.5))
+        var head = Path()
+        head.move(to: CGPoint(x: -2, y: -3.5)); head.addQuadCurve(to: CGPoint(x: 8, y: -4.6), control: CGPoint(x: 3, y: -6))
+        head.addQuadCurve(to: CGPoint(x: 17, y: -1.6), control: CGPoint(x: 13, y: -4)); head.addQuadCurve(to: CGPoint(x: 18.5, y: 0.9), control: CGPoint(x: 19.2, y: -0.8))
+        head.addQuadCurve(to: CGPoint(x: -2, y: 3.5), control: CGPoint(x: 8, y: 4.4)); head.closeSubpath()
+        body.addPath(head.applying(CGAffineTransform(translationX: flyHeadBase.x, y: flyHeadBase.y).rotated(by: flyHeadAngle)))
+        g.fill(body, with: .color(color))
+        // Lighter belly, horns, spikes, eye.
+        g.fill(Ink.ellipse(CGPoint(x: 0, y: 5.5), 15, 3.2), with: .color(.white.opacity(0.28)))
+        let horn = Ink.tapered(Ink.quad(CGPoint(x: 1, y: -3.5), CGPoint(x: -4, y: -7), CGPoint(x: -9, y: -8)), 2.8, 0.5)
+        g.fill(horn.applying(CGAffineTransform(translationX: flyHeadBase.x, y: flyHeadBase.y).rotated(by: flyHeadAngle)), with: .color(.white.opacity(0.75)))
+        var spikes = Path()
+        for x in stride(from: -16.0, through: 10.0, by: 6.5) {
+            let y0 = -8.0 - 2.0 * cos(x / 20)
+            spikes.move(to: CGPoint(x: x - 1.8, y: y0 + 1)); spikes.addLine(to: CGPoint(x: x - 0.4, y: y0 - 3.2)); spikes.addLine(to: CGPoint(x: x + 1.8, y: y0 + 1)); spikes.closeSubpath()
+        }
+        g.fill(spikes, with: .color(color))
+        let eye = CGPoint(x: 8, y: -1.8).applying(CGAffineTransform(translationX: flyHeadBase.x, y: flyHeadBase.y).rotated(by: flyHeadAngle))
+        g.fill(Ink.circle(eye, 1.6), with: .color(.black.opacity(0.85)))
+        // Near wing with its bones.
+        let wt = wingTransform(shoulder: CGPoint(x: 3, y: -7), lift: s, size: 1)
+        g.fill(wingPath().applying(wt), with: .color(color.opacity(0.85)))
+        var bones = Path()
+        for tip in wingTips { bones.move(to: wingWrist); bones.addLine(to: tip) }
+        bones.move(to: .zero); bones.addLine(to: wingElbow); bones.addLine(to: wingWrist)
+        g.stroke(bones.applying(wt), with: .color(.black.opacity(0.35)), lineWidth: 1.6)
+    }
+
     // MARK: - Flying
 
     /// Dragon in flight, about 110 units from snout to tail, wingspan larger than the body.
-    static func drawFlying(_ base: GraphicsContext, pose: DragonPose, flapPhase: Double, t: Double, palette pal: DragonPalette) {
+    static func drawFlying(_ base: GraphicsContext, pose: DragonPose, flapPhase: Double, t: Double, palette pal: DragonPalette, glide: Double = 0) {
         var c = base
         c.concatenate(pose.transform)
+        // While gliding the wings stay spread instead of beating.
+        let g = CGFloat(M.clamp01(glide))
+        let nearLift = M.lerp(wingLift(flapPhase), 0.62, g), farLift = M.lerp(wingLift(flapPhase - 0.45), 0.5, g)
 
         // Far wing, behind everything, a little late in the stroke.
-        drawWing(c, shoulder: CGPoint(x: -3, y: -8), lift: wingLift(flapPhase - 0.45), size: 0.9,
+        drawWing(c, shoulder: CGPoint(x: -3, y: -8), lift: farLift, size: 0.9,
                  fill: pal.wingFar, edge: pal.wingFar, bone: pal.bodyDark)
 
         // Tail with spikes and a spade.
@@ -300,7 +342,7 @@ enum DragonPainter {
         drawHead(c, at: flyHeadBase, angle: flyHeadAngle, palette: pal, eyeClosed: false)
 
         // Near wing on top.
-        drawWing(c, shoulder: CGPoint(x: 3, y: -7), lift: wingLift(flapPhase), size: 1,
+        drawWing(c, shoulder: CGPoint(x: 3, y: -7), lift: nearLift, size: 1,
                  fill: pal.wing, edge: pal.wingEdge, bone: pal.bodyDark)
     }
 
@@ -561,10 +603,10 @@ struct MiniDragonView: View {
             Canvas { c, size in
                 let bob = CGFloat(sin(t * 2 * .pi * 0.9)) * 0.8
                 let pose = DragonPose(
-                    position: CGPoint(x: size.width * 0.46, y: size.height * 0.66 + bob),
-                    angle: 0, scale: size.width / 120, flip: -1
+                    position: CGPoint(x: size.width * 0.52, y: size.height * 0.64 + bob),
+                    angle: -0.04, scale: size.width / 116, flip: 1
                 )
-                DragonPainter.drawSilhouette(c, pose: pose, flapPhase: t * 2 * .pi * (paused ? 0.6 : 1.4), color: color)
+                DragonPainter.drawMini(c, pose: pose, flapPhase: t * 2 * .pi * (paused ? 0.6 : 1.4), color: color)
             }
         }
         .frame(width: 36, height: 22)

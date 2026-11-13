@@ -19,10 +19,10 @@ enum DragonKit {
 
     /// `climb` > 0 = nose up, in radians.
     static func fly(_ c: GraphicsContext, at p: CGPoint, scale: CGFloat, climb: Double = 0, facing: CGFloat = -1,
-                    t: Double, palette: DragonPalette, hz: Double = 1.7, offset: Double = 0) {
+                    t: Double, palette: DragonPalette, hz: Double = 1.7, offset: Double = 0, glide: Double = 0) {
         let angle = facing < 0 ? climb : -climb
         let pose = DragonPose(position: p, angle: angle, scale: scale, flip: facing)
-        DragonPainter.drawFlying(c, pose: pose, flapPhase: t * 2 * .pi * hz + offset, t: t + offset, palette: palette)
+        DragonPainter.drawFlying(c, pose: pose, flapPhase: t * 2 * .pi * hz + offset, t: t + offset, palette: palette, glide: glide)
     }
 
     /// A dragon in the air with a gentle hover, from a base point.
