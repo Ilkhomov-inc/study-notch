@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import StudyNookCore
 
@@ -592,23 +593,87 @@ struct RestDragonRig {
 }
 
 /// Tiny flying dragon in the collapsed island.
+/// The flap cycle is drawn once into a handful of images; Core Animation then flips through them
+/// in the window server, so the app itself does no work per frame (no redraws, no wakeups).
 struct MiniDragonView: View {
     let color: Color
     let paused: Bool
+    var awake = true
 
     var body: some View {
-        // The tiny dragon in the collapsed island runs at 6 fps: it is the only thing animating there.
-        TimelineView(.animation(minimumInterval: 1.0 / 6.0)) { ctx in
-            let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 86_400)
-            Canvas { c, size in
-                let bob = CGFloat(sin(t * 2 * .pi * 0.9)) * 0.8
+        MiniDragonLayer(frames: MiniDragonFrames.frames(color: color, paused: paused),
+                        duration: paused ? 1 / 0.6 : 2 / 1.4)
+            .frame(width: MiniDragonFrames.size.width, height: MiniDragonFrames.size.height)
+            .id(paused)
+    }
+}
+
+@MainActor
+enum MiniDragonFrames {
+    static let size = CGSize(width: 36, height: 22)
+    private static var cache: [String: [CGImage]] = [:]
+
+    /// One loop: two wing beats (one when paused) and one gentle bob.
+    static func frames(color: Color, paused: Bool) -> [CGImage] {
+        let key = "\(color.description)-\(paused)"
+        if let hit = cache[key] { return hit }
+        let count = paused ? 10 : 12
+        let beats = paused ? 1.0 : 2.0
+        let images: [CGImage] = (0..<count).compactMap { i in
+            let u = Double(i) / Double(count)
+            let canvas = Canvas { c, size in
+                let bob = CGFloat(sin(u * 2 * .pi)) * 0.8
                 let pose = DragonPose(
                     position: CGPoint(x: size.width * 0.52, y: size.height * 0.64 + bob),
                     angle: -0.04, scale: size.width / 116, flip: 1
                 )
-                DragonPainter.drawMini(c, pose: pose, flapPhase: t * 2 * .pi * (paused ? 0.6 : 1.4), color: color)
+                DragonPainter.drawMini(c, pose: pose, flapPhase: u * beats * 2 * .pi, color: color)
             }
+            .frame(width: size.width, height: size.height)
+            let r = ImageRenderer(content: canvas)
+            r.scale = NSScreen.main?.backingScaleFactor ?? 2
+            return r.cgImage
         }
-        .frame(width: 36, height: 22)
+        cache[key] = images
+        return images
     }
+}
+
+/// A layer that loops through images on its own.
+struct MiniDragonLayer: NSViewRepresentable {
+    let frames: [CGImage]
+    let duration: Double
+
+    final class FlipView: NSView {
+        let flip = CALayer()
+        override func layout() {
+            super.layout()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            flip.frame = bounds
+            CATransaction.commit()
+        }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    func makeNSView(context: Context) -> FlipView {
+        let view = FlipView()
+        view.wantsLayer = true
+        let layer = view.flip
+        layer.contentsGravity = .resizeAspect
+        layer.contents = frames.first
+        view.layer?.addSublayer(layer)
+        if frames.count > 1 {
+            let anim = CAKeyframeAnimation(keyPath: "contents")
+            anim.values = frames
+            anim.calculationMode = .discrete
+            anim.duration = duration
+            anim.repeatCount = .infinity
+            anim.isRemovedOnCompletion = false
+            layer.add(anim, forKey: "flap")
+        }
+        return view
+    }
+
+    func updateNSView(_ view: FlipView, context: Context) {}
 }

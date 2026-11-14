@@ -39,6 +39,7 @@ struct Replay: Equatable {
 struct StatsPanel: View {
     let engine: PomodoroEngine
     let model: NotchViewModel
+    @State private var hovered: Chapter?
 
     private static let weekday: DateFormatter = {
         let f = DateFormatter()
@@ -96,23 +97,21 @@ struct StatsPanel: View {
                         .foregroundStyle(.white.opacity(0.5))
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 5)], alignment: .leading, spacing: 5) {
-                            ForEach(chapters, id: \.rawValue) { ch in
-                                Button { model.startReplay(ch) } label: {
-                                    HStack(spacing: 4) {
-                                        Text("\(ch.number)").font(.system(size: 10, weight: .heavy, design: .rounded)).foregroundStyle(Theme.focus)
-                                        Text(ch.title).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.white).lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 4)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Capsule().fill(.white.opacity(0.1)))
-                                    .contentShape(Capsule())
-                                }
-                                .buttonStyle(PressableStyle())
+                    // Numbered chips, no scrolling: all 12 fit. Hovering one shows its title below.
+                    let rows = [Array(chapters.prefix(6)), Array(chapters.dropFirst(6))].filter { !$0.isEmpty }
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(rows.indices, id: \.self) { r in
+                            HStack(spacing: 5) {
+                                ForEach(rows[r], id: \.rawValue) { ch in chip(ch) }
                             }
                         }
+                    }
+                    let shown = hovered ?? chapters.last
+                    if let shown {
+                        Text("\(shown.number). \(shown.title)")
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .lineLimit(1)
                     }
                 }
             }
@@ -121,6 +120,23 @@ struct StatsPanel: View {
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(white: 0.11))
+    }
+
+    private func chip(_ ch: Chapter) -> some View {
+        Button { model.startReplay(ch) } label: {
+            Text("\(ch.number)")
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(hovered == ch ? .black : Theme.focus)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(hovered == ch ? Theme.focus : .white.opacity(0.1)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableStyle())
+        .onHover { inside in
+            if inside { hovered = ch } else if hovered == ch { hovered = nil }
+        }
+        .help("Глава \(ch.number) · \(ch.title)")
     }
 
     private func stat(title: String, main: String, unit: String, detail: String) -> some View {

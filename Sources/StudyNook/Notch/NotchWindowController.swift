@@ -25,9 +25,7 @@ final class NotchWindowController {
     func show() {
         layout()
         // Cheap polling of the cursor position: global mouse monitors are not needed and need no permissions.
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.step() }
-        }
+        schedule(fast: true)
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
@@ -35,6 +33,23 @@ final class NotchWindowController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
         }
+    }
+
+    /// Polling rate: 15 Hz while the cursor is near the island (so it opens without lag), 5 Hz otherwise.
+    private var isFast = false
+
+    private func schedule(fast: Bool) {
+        guard timer == nil || fast != isFast else { return }
+        isFast = fast
+        timer?.invalidate()
+        let interval = fast ? 1.0 / 15.0 : 1.0 / 5.0
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.step() }
+        }
+        // Lets macOS batch our wakeups with others.
+        t.tolerance = interval * 0.3
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     /// The panel is only as big as it needs to be: a small strip while collapsed (cheap for the window server),
@@ -93,7 +108,12 @@ final class NotchWindowController {
         let island = model.islandRect(expanded: expanded, active: engine.phase != .idle)
 
         // The panel takes clicks only while the cursor is over the open island; everywhere else clicks pass through.
-        panel.ignoresMouseEvents = !(expanded && island.insetBy(dx: -2, dy: -2).contains(mouse))
+        let ignore = !(expanded && island.insetBy(dx: -2, dy: -2).contains(mouse))
+        if panel.ignoresMouseEvents != ignore { panel.ignoresMouseEvents = ignore }
+
+        // Poll fast only when the cursor is close to the island or something is moving.
+        let near = island.insetBy(dx: -140, dy: -90).contains(mouse)
+        schedule(fast: near || expanded || model.isHovering || now < bigUntil)
 
         // Margin on top: the cursor stops at the screen edge.
         let hot = island.insetBy(dx: -8, dy: -8)

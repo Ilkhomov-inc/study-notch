@@ -46,6 +46,26 @@ enum SnapshotRenderer {
             render(engine, model, to: folder.appendingPathComponent("\(item.name).png"))
         }
 
+        // The tiny dragon's flap frames side by side (the live view flips through them with Core Animation).
+        if only == nil || "mini".hasPrefix(only ?? "") {
+            for paused in [false, true] {
+                let frames = MiniDragonFrames.frames(color: Theme.focus, paused: paused)
+                let strip = HStack(spacing: 4) {
+                    ForEach(frames.indices, id: \.self) { i in
+                        Image(decorative: frames[i], scale: 2).resizable().frame(width: 72, height: 44)
+                    }
+                }
+                .padding(8)
+                .background(Color.black)
+                let r = ImageRenderer(content: strip)
+                r.scale = 2
+                if let image = r.nsImage, let tiff = image.tiffRepresentation,
+                   let rep = NSBitmapImageRep(data: tiff), let png = rep.representation(using: .png, properties: [:]) {
+                    try? png.write(to: folder.appendingPathComponent(paused ? "mini-paused.png" : "mini.png"))
+                }
+            }
+        }
+
         // Statistics and a replay, with a made-up week of study.
         if only == nil || "stats".hasPrefix(only ?? "") || "replay".hasPrefix(only ?? "") {
             let suite = "studynook.snapshot.stats"

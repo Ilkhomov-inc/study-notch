@@ -66,7 +66,7 @@ struct CompactContent: View {
     @ViewBuilder
     private func leading(_ phase: Phase, _ accent: Color) -> some View {
         if phase == .journey {
-            MiniDragonView(color: accent, paused: engine.isPaused)
+            MiniDragonView(color: accent, paused: engine.isPaused, awake: model.isAwake)
         } else {
             let symbol = switch phase {
             case .arrival: "flame.fill"
@@ -90,6 +90,7 @@ struct ExpandedContent: View {
         let phase = engine.phase
         let chapter = engine.chapter
         let accent = Theme.accent(phase)
+        let nextMinutes = engine.nextJourneyIsFixed ? PomodoroEngine.firstJourneyMinutes : model.journeyMinutes
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in
@@ -128,7 +129,7 @@ struct ExpandedContent: View {
                 }
             }
                 .frame(height: NotchLayout.sceneHeight)
-                .mask(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
 
@@ -145,7 +146,9 @@ struct ExpandedContent: View {
                                 .foregroundStyle(.white.opacity(0.6))
                                 .lineLimit(1)
                             TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
-                                let left = phase == .arrival ? 0 : engine.remaining(at: ctx.date)
+                                let left = phase == .arrival ? 0
+                                    : phase == .idle ? TimeInterval(nextMinutes) * engine.durations.secondsPerMinute
+                                    : engine.remaining(at: ctx.date)
                                 Text(TimeText.mmss(left))
                                     .font(.system(size: 38, weight: .light, design: .rounded))
                                     .monospacedDigit()

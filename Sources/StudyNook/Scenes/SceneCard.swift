@@ -3,7 +3,7 @@ import StudyNookCore
 
 /// Scene card in the expanded island.
 /// Two layers keep the battery happy: the slow background is redrawn twice a second,
-/// the foreground at 20 fps (12 fps with Low Power Mode or Reduce Motion), and nothing is drawn while the screen sleeps.
+/// the foreground at 15 fps (10 fps with Low Power Mode or Reduce Motion), and nothing is drawn while the screen sleeps.
 /// While a chapter is being watched again, the replay decides what to draw instead of the timer.
 struct SceneCard: View {
     let engine: PomodoroEngine
@@ -24,13 +24,13 @@ struct SceneCard: View {
         let identity = model.replay.map { "replay-\($0.chapter.rawValue)-\($0.started.timeIntervalSince1970)" }
             ?? "\(engine.phase.rawValue)-\(engine.chapter.rawValue)"
         ZStack {
-            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+            TimelineView(.animation(minimumInterval: 0.5, paused: !model.isAwake)) { ctx in
                 let f = frame(ctx.date)
                 Canvas(opaque: true) { c, size in
                     StoryScenes.background(c, SceneEnv(size: size, t: 0, p: f.p, total: f.total), phase: f.phase, chapter: f.chapter)
                 }
             }
-            TimelineView(.animation(minimumInterval: slow ? 1.0 / 12.0 : 1.0 / 20.0, paused: !model.isAwake)) { ctx in
+            TimelineView(.animation(minimumInterval: slow ? 1.0 / 10.0 : 1.0 / 15.0, paused: !model.isAwake)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 86_400) * (reduceMotion ? 0.3 : 1)
                 let f = frame(ctx.date)
                 Canvas { c, size in
