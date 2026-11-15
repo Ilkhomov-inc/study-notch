@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         observeSleep()
         Feedback.prepare()
+        MusicController.shared.start()
 
         if let raw = env["STUDYNOOK_PHASE"] {
             let progress = Double(env["STUDYNOOK_PROGRESS"] ?? "") ?? 0.45

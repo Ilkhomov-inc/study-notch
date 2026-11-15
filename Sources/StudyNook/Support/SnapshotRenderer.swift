@@ -86,6 +86,17 @@ enum SnapshotRenderer {
             model.showStats = true
             render(engine, model, to: folder.appendingPathComponent("stats.png"))
             model.showStats = false
+            let music = MusicController.shared
+            music.track = NowPlaying(
+                player: .music, id: "snap", title: "Light of the Seven", artist: "Ramin Djawadi",
+                duration: 590, isPlaying: true, isFavorite: true, position: 204, stamp: Date(), artworkURL: nil
+            )
+            model.panel = .music
+            render(engine, model, to: folder.appendingPathComponent("music.png"))
+            music.track = nil
+            model.panel = .music
+            render(engine, model, to: folder.appendingPathComponent("music-empty.png"))
+            model.panel = .scene
             model.replay = Replay(chapter: .astapor, started: Date().addingTimeInterval(-34))
             render(engine, model, to: folder.appendingPathComponent("replay.png"))
         }

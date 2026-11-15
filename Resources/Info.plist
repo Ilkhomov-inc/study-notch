@@ -24,6 +24,8 @@
     <string>15.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Чтобы показывать песню и управлять Музыкой и Spotify из островка: пауза, следующая, перемотка, избранное.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>

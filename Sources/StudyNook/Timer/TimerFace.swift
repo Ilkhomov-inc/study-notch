@@ -105,25 +105,30 @@ struct ExpandedContent: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Color.clear.frame(width: model.metrics.notchWidth + 8)
-                // Tap the eggs for statistics and chapters to watch again.
-                Button { model.showStats.toggle() } label: {
-                    HStack(spacing: 5) {
-                        EggCounter(flights: engine.flightsToday)
-                        Image(systemName: model.showStats ? "xmark.circle.fill" : "chart.bar.fill")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.6))
+                HStack(spacing: 12) {
+                    MusicButton(music: MusicController.shared, model: model)
+                    // Tap the eggs for statistics and chapters to watch again.
+                    Button { model.panel = model.panel == .stats ? .scene : .stats } label: {
+                        HStack(spacing: 5) {
+                            EggCounter(flights: engine.flightsToday)
+                            Image(systemName: model.panel == .stats ? "xmark.circle.fill" : "chart.bar.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
+                    .buttonStyle(PressableStyle())
                 }
-                .buttonStyle(PressableStyle())
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.horizontal, 26)
             .frame(height: model.metrics.notchHeight)
 
             Group {
-                if model.showStats && model.replay == nil {
+                if model.panel == .stats && model.replay == nil {
                     StatsPanel(engine: engine, model: model)
+                } else if model.panel == .music && model.replay == nil {
+                    MusicPanel(music: MusicController.shared)
                 } else {
                     SceneCard(engine: engine, model: model)
                 }
@@ -166,7 +171,27 @@ struct ExpandedContent: View {
             Spacer(minLength: 0)
         }
         .frame(width: model.expandedSize.width, height: model.expandedSize.height, alignment: .top)
-        .onDisappear { model.showStats = false }
+        .onDisappear { model.panel = .scene }
+    }
+}
+
+/// Header button for the music panel. Shows a waveform while a song plays.
+struct MusicButton: View {
+    let music: MusicController
+    let model: NotchViewModel
+
+    var body: some View {
+        let open = model.panel == .music
+        let playing = music.track?.isPlaying == true
+        Button { model.panel = open ? .scene : .music } label: {
+            Image(systemName: open ? "xmark.circle.fill" : playing ? "waveform" : "music.note")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(open ? .white.opacity(0.6) : playing ? MusicTheme.accent : .white.opacity(0.6))
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .help(open ? "Закрыть музыку" : "Музыка")
     }
 }
 

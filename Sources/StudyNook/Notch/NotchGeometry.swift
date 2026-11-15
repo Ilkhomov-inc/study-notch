@@ -59,6 +59,8 @@ enum NotchLayout {
     static let spring = Animation.spring(response: 0.44, dampingFraction: 0.8)
 }
 
+enum IslandPanel: Equatable { case scene, stats, music }
+
 /// State of the island shared between AppKit (hover, panel) and SwiftUI.
 @MainActor
 @Observable
@@ -74,8 +76,12 @@ final class NotchViewModel {
     var pinnedExpanded = false
     /// False while the screen sleeps: scenes stop drawing.
     var isAwake = true
-    /// Statistics panel shown instead of the scene.
-    var showStats = false
+    /// What fills the card under the notch: the scene, statistics or music.
+    var panel: IslandPanel = .scene
+    var showStats: Bool {
+        get { panel == .stats }
+        set { panel = newValue ? .stats : .scene }
+    }
     /// A finished chapter being watched again.
     var replay: Replay?
     @ObservationIgnored private var replayToken = 0
